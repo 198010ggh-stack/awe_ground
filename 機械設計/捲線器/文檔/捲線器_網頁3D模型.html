@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>捲線器 3D 模型</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --panel: #ffffff; --text: #1d2228; --muted: #66707a;
+    --border: #dde1e6; --accent: #e07a1f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15181c; --panel: #1f2328; --text: #e6e8eb; --muted: #9aa3ad;
+      --border: #333a42; --accent: #f0943c;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.45 system-ui, "Microsoft JhengHei", "PingFang TC", sans-serif; }
+  #app { display: flex; height: 100%; }
+  #view { flex: 1; position: relative; min-width: 0; }
+  #view canvas { display: block; }
+  #side { width: 320px; background: var(--panel); border-left: 1px solid var(--border);
+    overflow-y: auto; padding: 14px 16px; }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 12px; margin-bottom: 12px; }
+  h2 { font-size: 13px; margin: 16px 0 6px; color: var(--muted); font-weight: 600; }
+  .ctrl { margin: 6px 0; }
+  .ctrl label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .parts { list-style: none; padding: 0; margin: 0; }
+  .parts li { display: flex; align-items: center; gap: 8px; padding: 3px 4px; border-radius: 4px; cursor: pointer; }
+  .parts li:hover, .parts li.hi { background: color-mix(in srgb, var(--accent) 15%, transparent); }
+  .sw { width: 12px; height: 12px; border-radius: 3px; flex: none; border: 1px solid #0003; }
+  .parts .tag { margin-left: auto; font-size: 11px; color: var(--muted); }
+  #info { position: absolute; left: 12px; bottom: 12px; max-width: min(420px, calc(100% - 24px));
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+    box-shadow: 0 4px 16px #0002; font-size: 13px; }
+  #info b { display: block; margin-bottom: 2px; }
+  #info .muted { color: var(--muted); }
+  .hint { position: absolute; right: 12px; top: 10px; color: var(--muted); font-size: 12px; }
+  .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  button { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 10px; cursor: pointer; font: inherit; font-size: 12px; }
+  button:hover { border-color: var(--accent); }
+  table.kv { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.kv td { padding: 2px 0; border-bottom: 1px dashed var(--border); }
+  table.kv td:last-child { text-align: right; }
+  @media (max-width: 760px) {
+    #app { flex-direction: column; }
+    #view { height: 60vh; flex: none; }
+    #side { width: 100%; border-left: none; border-top: 1px solid var(--border); padding: 12px 16px; }
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="app">
+  <div id="view">
+    <div class="hint">左鍵旋轉 · 右鍵平移 · 滾輪縮放 · 滑鼠停在零件上看說明</div>
+    <div id="info"><b>直驅捲線器（80100 Kv50）</b><span class="muted">把滑鼠移到零件上，這裏會顯示名稱和規格。</span></div>
+  </div>
+  <aside id="side">
+    <h1>地面站捲線器 · 直驅方案</h1>
+    <div class="sub">單位 mm · 軸心高 85 · 依設計文檔 2026-10-20</div>
+
+    <h2>視圖</h2>
+    <div class="ctrl">爆炸視圖
+      <input id="explode" type="range" min="0" max="1" step="0.01" value="0">
+    </div>
+    <div class="ctrl"><label><input id="clip" type="checkbox"> 剖切（切掉前半部分看內部）</label></div>
+    <div class="ctrl btns">
+      <button data-view="iso">等軸測</button>
+      <button data-view="front">正面（出線方向）</button>
+      <button data-view="side">端面（沿軸向）</button>
+      <button data-view="top">俯視</button>
+    </div>
+
+    <h2>零件（點擊顯示/隱藏）</h2>
+    <ul class="parts" id="parts"></ul>
+
+    <h2>關鍵參數</h2>
+    <table class="kv">
+      <tr><td>傳動</td><td>直驅 1:1，梅花聯軸器</td></tr>
+      <tr><td>捲筒芯</td><td>6061 鋁管 Ø90×3，L66</td></tr>
+      <tr><td>捲線寬 / 擋板</td><td>60 / Ø140</td></tr>
+      <tr><td>50 m 線捲完外徑</td><td>≈ Ø96</td></tr>
+      <tr><td>平均有效捲徑</td><td>≈ Ø93</td></tr>
+      <tr><td>線拉力係數</td><td>≈ 4.1 N/A</td></tr>
+      <tr><td>捲筒軸</td><td>Ø15，L200，削平</td></tr>
+      <tr><td>軸承</td><td>KFL002 ×2，跨距 ≈ 152</td></tr>
+    </table>
+  </aside>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---------- 參數（與設計文檔一致，單位 mm） ----------
+const H = 85;               // 軸心高（型材頂面 z=0）
+const P = {
+  plateT: 10, plateW: 120, plateH: 125,
+  footL: 35, footT: 8, gussetX: 30, gussetZ: 55, gussetT: 8, railY: 40,
+  motorD: 79, motorL: 100, shaftD: 12, shaftL: 40,
+  mountPCD: 56, mountHole: 5.5, bossD: 32,
+  coupD: 40, coupL: 66, coupX0: 14,
+  spoolShaftD: 15, spoolShaftX0: 56, spoolShaftL: 200,
+  plateAx: 0, plateBx: 100, plateCx: 226.5,
+  kflSpacing: 53, kflHole: 7, kflT: 6.5, kflW: 42, kflL: 67, kflBossD: 34, kflBossL: 13,
+  flangeHubD: 35, flangeHubL: 20.4, flangeD: 56.8, flangeT: 6, flangePCD: 47.5, flangeX0: 120.6,
+  discD: 140, discT: 8, rodPCD: 70, rodD: 5,
+  tubeOD: 90, tubeID: 84, tubeL: 68, groove: 4,
+  lineOD: 96,
+  railX0: -110, railL: 400,
+};
+const discAx = 133;   // 驅動側擋板外側面（法蘭反裝：法蘭盤在鋁管內 141..147，輪轂穿過擋板到 120.6）
+const discBx = discAx + P.discT + (P.tubeL - 2 * P.groove); // 另一塊擋板內側面 201
+const tubeX0 = discAx + P.discT - P.groove;                  // 138
+const spoolCenter = (discAx + discBx + P.discT) / 2;
+
+// ---------- 場景 ----------
+const view = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.localClippingEnabled = true;
+view.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(35, 1, 1, 10000);
+camera.up.set(0, 0, 1);   // 世界座標：x 沿軸向，y 朝前（出線方向），z 朝上；須在建立 OrbitControls 前設定
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(80, 0, 60);
+
+const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+scene.background = new THREE.Color(isDark ? 0x15181c : 0xf4f5f7);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+sun.position.set(300, 500, 600); scene.add(sun);
+const fill = new THREE.DirectionalLight(0xffffff, 0.8);
+fill.position.set(-400, -300, 200); scene.add(fill);
+const grid = new THREE.GridHelper(1000, 40, isDark ? 0x3a4048 : 0xc8ccd2, isDark ? 0x262b31 : 0xe2e5e9);
+grid.rotation.x = Math.PI / 2; grid.position.set(90, 0, -20.5); scene.add(grid);
+
+const clipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
+const mats = [];
+function mat(color, opts = {}) {
+  const m = new THREE.MeshStandardMaterial({ color, metalness: opts.metal ?? 0.1, roughness: opts.rough ?? 0.6,
+    transparent: !!opts.opacity, opacity: opts.opacity ?? 1, side: THREE.DoubleSide, depthWrite: !opts.opacity });
+  mats.push(m); return m;
+}
+const M = {
+  pla: mat(0xf0f0ea, { rough: 0.75 }),
+  plaDisc: mat(0xf2b04a, { rough: 0.7 }),
+  alu: mat(0xc9ced4, { metal: 0.35, rough: 0.4 }),
+  steel: mat(0xd5d9de, { metal: 0.4, rough: 0.3 }),
+  dark: mat(0x2a2d31, { metal: 0.5, rough: 0.45 }),
+  zinc: mat(0x9aa1a8, { metal: 0.3, rough: 0.45 }),
+  spider: mat(0xd2352c, { rough: 0.8 }),
+  line: mat(0xe8d23a, { rough: 0.9 }),
+  rail: mat(0xb3b9c0, { metal: 0.3, rough: 0.5 }),
+  guard: mat(0x6fa8dc, { opacity: 0.18, rough: 0.2 }),
+  wireR: mat(0xc0392b), wireY: mat(0xe1c03a), wireK: mat(0x222222),
+};
+
+// 局部擠出 → 世界：local(x,y,z) → world(y=x, z=y, x=z)，即在 yz 平面畫形狀、沿 x 擠出
+const toYZ = new THREE.Matrix4().set(0,0,1,0, 1,0,0,0, 0,1,0,0, 0,0,0,1);
+// local(x,y,z) → world(x=x, z=y, y=-z)，即在 xz 平面畫形狀、沿 -y 擠出
+const toXZ = new THREE.Matrix4().set(1,0,0,0, 0,0,-1,0, 0,1,0,0, 0,0,0,1);
+
+function circlePath(cx, cy, r, seg = 48) {
+  const p = new THREE.Path();
+  p.absarc(cx, cy, r, 0, Math.PI * 2, true);
+  return p;
+}
+function extrudeYZ(shape, x0, depth) {
+  const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 48 });
+  g.applyMatrix4(toYZ); g.translate(x0, 0, 0); return g;
+}
+function cylX(d, x0, len, seg = 48) {
+  const g = new THREE.CylinderGeometry(d / 2, d / 2, len, seg);
+  g.rotateZ(-Math.PI / 2); g.translate(x0 + len / 2, 0, H); return g;
+}
+function ringX(od, id, x0, len) {
+  const s = new THREE.Shape(); s.absarc(0, H, od / 2, 0, Math.PI * 2, false);
+  s.holes.push(circlePath(0, H, id / 2));
+  return extrudeYZ(s, x0, len);
+}
+function boxG(x0, x1, y0, y1, z0, z1) {
+  const g = new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0);
+  g.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); return g;
+}
+function hull(pts) {
+  pts = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0]);
+  const lo = [], up = [];
+  for (const p of pts) { while (lo.length >= 2 && cross(lo[lo.length-2], lo[lo.length-1], p) <= 0) lo.pop(); lo.push(p); }
+  for (const p of pts.reverse()) { while (up.length >= 2 && cross(up[up.length-2], up[up.length-1], p) <= 0) up.pop(); up.push(p); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+}
+
+// ---------- 零件註冊 ----------
+const parts = [];   // {name, group, spec, tag, color, x0, x1}
+function addPart(name, spec, tag, color, meshes, xRange, extra = {}) {
+  const group = new THREE.Group();
+  for (const [geo, m] of meshes) {
+    const mesh = new THREE.Mesh(geo, m); mesh.userData.part = name; group.add(mesh);
+  }
+  scene.add(group);
+  const xc = (xRange[0] + xRange[1]) / 2;
+  parts.push({ name, spec, tag, color, group, xc, noExplode: extra.noExplode, list: extra.list ?? true });
+  return group;
+}
+
+// 立板：板 + 腳板 + 兩條加強筋
+function upright(x0, footDir, holeFn) {
+  const s = new THREE.Shape();
+  const w = P.plateW / 2;
+  s.moveTo(-w, 0); s.lineTo(w, 0); s.lineTo(w, P.plateH - 12);
+  s.quadraticCurveTo(w, P.plateH, w - 12, P.plateH); s.lineTo(-w + 12, P.plateH);
+  s.quadraticCurveTo(-w, P.plateH, -w, P.plateH - 12); s.lineTo(-w, 0);
+  holeFn(s);
+  const geos = [extrudeYZ(s, x0, P.plateT)];
+  // 腳板（xy 平面），帶長孔
+  const fx0 = footDir > 0 ? x0 + P.plateT : x0 - P.footL;
+  const f = new THREE.Shape();
+  f.moveTo(fx0, -w); f.lineTo(fx0 + P.footL, -w); f.lineTo(fx0 + P.footL, w); f.lineTo(fx0, w); f.lineTo(fx0, -w);
+  const sx = footDir > 0 ? fx0 + P.footL - 15 : fx0 + 15;
+  for (const y of [-P.railY, P.railY]) {
+    const sl = new THREE.Path();
+    sl.absarc(sx - 3, y, 2.75, Math.PI / 2, Math.PI * 1.5, false);
+    sl.absarc(sx + 3, y, 2.75, Math.PI * 1.5, Math.PI / 2, false);
+    f.holes.push(sl);
+  }
+  const fg = new THREE.ExtrudeGeometry(f, { depth: P.footT, bevelEnabled: false, curveSegments: 24 });
+  geos.push(fg);
+  // 加強筋（xz 平面三角形）
+  for (const y of [-P.railY + 12, P.railY - 12]) {
+    const t = new THREE.Shape();
+    const xb = footDir > 0 ? x0 + P.plateT : x0;
+    t.moveTo(xb, P.footT); t.lineTo(xb + footDir * P.gussetX, P.footT); t.lineTo(xb, P.footT + P.gussetZ); t.lineTo(xb, P.footT);
+    const tg = new THREE.ExtrudeGeometry(t, { depth: P.gussetT, bevelEnabled: false });
+    tg.applyMatrix4(toXZ); tg.translate(0, y + P.gussetT / 2, 0);
+    geos.push(tg);
+  }
+  return geos;
+}
+
+// 1. 底座型材
+{
+  const g = [];
+  for (const y of [-P.railY, P.railY]) g.push([boxG(P.railX0, P.railX0 + P.railL, y - 10, y + 10, -20, 0), M.rail]);
+  g.push([boxG(P.railX0, P.railX0 + 20, -30, 30, -20, 0), M.rail]);
+  g.push([boxG(P.railX0 + P.railL - 20, P.railX0 + P.railL, -30, 30, -20, 0), M.rail]);
+  addPart('底座 2020 鋁型材', '2 根 × 400 mm，中心距 80；兩端可各夾一根 60 mm 短橫樑（20 系列角碼）。', '標準件', '#b3b9c0', g, [0, 0], { noExplode: true });
+}
+
+// 2. 電機
+{
+  const g = [];
+  const can = cylX(P.motorD, -P.motorL, P.motorL - 3, 64);
+  g.push([can, M.dark]);
+  g.push([cylX(P.motorD - 6, -3, 3, 64), M.zinc]);           // 定子安裝面
+  g.push([cylX(P.shaftD, 0, P.shaftL), M.steel]);            // 軸
+  // 散熱槽暗示
+  for (let i = 0; i < 12; i++) {
+    const a = i / 12 * Math.PI * 2;
+    const r = P.motorD / 2 - 0.5;
+    const bb = boxG(-P.motorL + 8, -10, -3, 3, r - 1, r + 0.6);
+    bb.applyMatrix4(new THREE.Matrix4().makeRotationX(a)); bb.translate(0, 0, H);
+    g.push([bb, M.zinc]);
+  }
+  // 三根電機線
+  [[M.wireY, -9], [M.wireK, 0], [M.wireR, 9]].forEach(([m, y]) => {
+    const w = new THREE.CylinderGeometry(2.5, 2.5, 110, 12);
+    w.rotateX(Math.PI / 2); w.translate(-12, y, H - P.motorD / 2 - 55 + 2);
+    g.push([w, m]);
+  });
+  addPart('80100 電機 Kv50', '外轉子：黑色殼體隨軸旋轉，只有定子安裝面（貼立板 A 的一端）固定。Ø12 D 型軸伸出 40 mm。⚠ 轉子殼外露旋轉，注意手和線。', '已有', '#2a2d31', g, [-P.motorL, 0]);
+}
+
+// 3. 立板 A（電機座）
+{
+  const geos = upright(P.plateAx, +1, s => {
+    s.holes.push(circlePath(0, H, P.bossD / 2));
+    for (let i = 0; i < 4; i++) {
+      const a = Math.PI / 4 + i * Math.PI / 2;
+      s.holes.push(circlePath(Math.cos(a) * P.mountPCD / 2, H + Math.sin(a) * P.mountPCD / 2, P.mountHole / 2, 24));
+    }
+  });
+  addPart('立板 A：電機座', 'PLA 打印，厚 10。中心孔 Ø32（按定子凸台實測改），4×Ø5.5 通孔在 Ø56 孔距圓上，用 M5 螺絲固定電機。腳板長孔 ±3 mm 可調。⚠ PLA 怕熱：電機殼燙手就停機；上天前換鋁板。', '3D 打印', '#f0f0ea', geos.map(g => [g, M.pla]), [0, 10]);
+}
+
+// 4. 梅花聯軸器 + 防護罩
+{
+  const hubL = (P.coupL - 16) / 2;
+  const g = [
+    [cylX(P.coupD, P.coupX0, hubL), M.alu],
+    [cylX(P.coupD - 6, P.coupX0 + hubL, 16), M.spider],
+    [cylX(P.coupD, P.coupX0 + hubL + 16, hubL), M.alu],
+  ];
+  // 爪齒
+  for (let i = 0; i < 3; i++) {
+    for (const [x0, off] of [[P.coupX0 + hubL, 0], [P.coupX0 + hubL + 8, Math.PI / 3]]) {
+      const a = i * 2 * Math.PI / 3 + off;
+      const s = new THREE.Shape();
+      s.absarc(0, H, P.coupD / 2, a - 0.42, a + 0.42, false);
+      s.lineTo(Math.cos(a + 0.42) * 8, H + Math.sin(a + 0.42) * 8);
+      s.absarc(0, H, 8, a + 0.42, a - 0.42, true);
+      g.push([extrudeYZ(s, x0, 8), M.alu]);
+    }
+  }
+  addPart('梅花聯軸器', 'D40 左右，孔徑 12 × 15，頂絲型，額定扭矩 ≥ 10 N·m。12 mm 端頂絲壓在電機軸削平面上。紅色是聚氨酯梅花墊，可以吸收少量不同心和衝擊。', '標準件', '#d2352c', g, [P.coupX0, P.coupX0 + P.coupL]);
+  const guard = ringX(56, 54, P.plateAx + P.plateT + 1, P.plateBx - P.plateAx - P.plateT - 2 - 14);
+  addPart('聯軸器防護罩', 'PLA 打印的半透明示意。實物做成兩半扣合的罩子，固定在型材上，防止捲到手指和線。', '3D 打印', '#6fa8dc', [[guard, M.guard]], [P.coupX0, P.coupX0 + P.coupL]);
+}
+
+// 5. 捲筒軸
+{
+  addPart('捲筒軸 Ø15', 'GCr15 鍍鉻光軸，長 200，整根單邊削平。由兩個 KFL002 支撐並鎖住軸向，線拉力全部經這根軸傳到軸承，不經過電機。', '標準件', '#e3e6ea',
+    [[cylX(P.spoolShaftD, P.spoolShaftX0, P.spoolShaftL), M.steel]], [P.spoolShaftX0, P.spoolShaftX0 + P.spoolShaftL], { noExplode: true });
+}
+
+// 6. KFL002 軸承
+function kfl(xFlange, dir) {
+  const pts = [];
+  for (let i = 0; i < 48; i++) { const a = i / 48 * Math.PI * 2; pts.push([Math.cos(a) * P.kflW / 2, H + Math.sin(a) * P.kflW / 2]); }
+  for (const zc of [H - P.kflSpacing / 2, H + P.kflSpacing / 2])
+    for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2; pts.push([Math.cos(a) * 7, zc + Math.sin(a) * 7]); }
+  const hp = hull(pts);
+  const s = new THREE.Shape(); s.moveTo(hp[0][0], hp[0][1]); hp.slice(1).forEach(p => s.lineTo(p[0], p[1]));
+  s.holes.push(circlePath(0, H - P.kflSpacing / 2, P.kflHole / 2, 20));
+  s.holes.push(circlePath(0, H + P.kflSpacing / 2, P.kflHole / 2, 20));
+  s.holes.push(circlePath(0, H, P.kflBossD / 2 - 1));
+  const fx0 = dir > 0 ? xFlange : xFlange - P.kflT;
+  const bossX0 = dir > 0 ? xFlange : xFlange - P.kflBossL;
+  const g = [
+    [extrudeYZ(s, fx0, P.kflT), M.zinc],
+    [ringX(P.kflBossD, P.spoolShaftD + 4, bossX0, P.kflBossL), M.zinc],
+    [ringX(P.spoolShaftD + 7, P.spoolShaftD, (dir > 0 ? xFlange + P.kflBossL : xFlange - P.kflBossL) - (dir > 0 ? 0 : 5.5) , 5.5), M.steel],
+  ];
+  // 螺栓頭
+  for (const zc of [H - P.kflSpacing / 2, H + P.kflSpacing / 2]) {
+    const b = new THREE.CylinderGeometry(5, 5, 4, 6); b.rotateZ(-Math.PI / 2);
+    b.translate(dir > 0 ? xFlange + P.kflT + 2 : xFlange - P.kflT - 2, 0, zc); g.push([b, M.steel]);
+  }
+  return g;
+}
+{
+  const xB = P.plateBx;              // 軸承裝在立板 B 朝聯軸器一側（-x）
+  addPart('KFL002 軸承（立板 B）', '菱形法蘭軸承，孔徑 15，兩顆 M6 螺栓穿過立板固定。用自帶頂絲鎖軸。', '標準件', '#9aa1a8', kfl(xB, -1), [xB - 13, xB]);
+  const xC = P.plateCx + P.plateT;   // 軸承裝在立板 C 外側（+x）
+  addPart('KFL002 軸承（立板 C）', '同上，裝在立板 C 外側。立板 C 外移到 226.5，給旋轉的拉桿螺母和 M6 螺絲頭留間隙；兩個軸承跨距約 152 mm，軸端剩約 3 mm。', '標準件', '#9aa1a8', kfl(xC, +1), [xC, xC + 13]);
+}
+
+// 7. 立板 B、C
+for (const [name, x0, dir] of [['立板 B：軸承座', P.plateBx, -1], ['立板 C：軸承座', P.plateCx, +1]]) {
+  const geos = upright(x0, dir, s => {
+    s.holes.push(circlePath(0, H, 36 / 2));
+    s.holes.push(circlePath(0, H - P.kflSpacing / 2, 6.5 / 2, 20));
+    s.holes.push(circlePath(0, H + P.kflSpacing / 2, 6.5 / 2, 20));
+  });
+  addPart(name, 'PLA 打印，和立板 A 同一個基礎外形（寬 120、高 125、厚 10）。中心孔 Ø36 讓過軸承凸台，2×Ø6.5 孔（間距 53）固定 KFL002。', '3D 打印', '#f0f0ea', geos.map(g => [g, M.pla]), [x0, x0 + 10]);
+}
+
+// 8. 抱緊式法蘭聯軸器（標準件，反裝）
+{
+  const s = new THREE.Shape(); s.absarc(0, H, P.flangeD / 2, 0, Math.PI * 2, false);
+  s.holes.push(circlePath(0, H, P.spoolShaftD / 2));
+  for (const [pcd, a0] of [[47.5, 90], [45, 30]]) for (let i = 0; i < 3; i++) { const a = (a0 + 120 * i) * Math.PI / 180; s.holes.push(circlePath(Math.cos(a) * pcd / 2, H + Math.sin(a) * pcd / 2, 2.6, 16)); }
+  const g = [
+    [ringX(P.flangeHubD, P.spoolShaftD, P.flangeX0, P.flangeHubL), M.steel],
+    [extrudeYZ(s, P.flangeX0 + P.flangeHubL, P.flangeT), M.steel],
+  ];
+  addPart('抱緊式法蘭聯軸器 Ø15', '標準件（法蘭盤 Ø56.8×6，輪轂 Ø35，總長 26.4，M4 抱緊螺絲）。反裝：法蘭盤在鋁管內貼驅動側擋板內側，輪轂穿過擋板 Ø35.4 中心孔朝外；3 顆 M5×25 穿過 Ø47.5 那組孔固定，螺母在擋板外側。光軸 200 不用加長。', '標準件', '#e3e6ea', g, [P.flangeX0, P.flangeX0 + P.flangeHubL + P.flangeT]);
+}
+
+// 9. 捲筒：擋板 ×2、鋁管、螺桿、線
+function disc(x0, drive) {
+  const s = new THREE.Shape(); s.absarc(0, H, P.discD / 2, 0, Math.PI * 2, false);
+  s.holes.push(circlePath(0, H, (drive ? 35.4 : 15.2) / 2));
+  for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + i * Math.PI / 2; s.holes.push(circlePath(Math.cos(a) * P.rodPCD / 2, H + Math.sin(a) * P.rodPCD / 2, 2.75, 16)); }
+  if (drive) for (let i = 0; i < 3; i++) { const a = (90 + 120 * i) * Math.PI / 180; s.holes.push(circlePath(Math.cos(a) * P.flangePCD / 2, H + Math.sin(a) * P.flangePCD / 2, 2.75, 16)); }
+  s.holes.push(circlePath(0, H + 48, 1.5, 12));   // 拴線孔
+  return extrudeYZ(s, x0, P.discT);
+}
+addPart('擋板（驅動側）', 'PLA 打印，Ø140 × 8。內側有深 3 mm 的環形槽插鋁管，槽內塗 AB 膠。中心孔 Ø35.4 讓法蘭輪轂穿過並定心；4×Ø5.5 拉桿孔（Ø70 孔距圓）+ 3×Ø5.5 法蘭螺栓孔（Ø47.5）+ Ø3 拴線孔（半徑 48）。', '3D 打印', '#f2b04a', [[disc(discAx, true), M.plaDisc]], [discAx, discAx + P.discT]);
+addPart('擋板（從動側）', 'PLA 打印，Ø140 × 8，只套在軸上定心，不傳扭。', '3D 打印', '#f2b04a', [[disc(discBx, false), M.plaDisc]], [discBx, discBx + P.discT]);
+addPart('捲筒芯 6061 鋁管', 'Ø90 × 3，長 68（實測），兩端各插入擋板 4 mm，淨捲線寬 60。鋁管承受捲線的徑向壓力。', '標準件', '#c9ced4', [[ringX(P.tubeOD, P.tubeID, tubeX0, P.tubeL), M.alu]], [tubeX0, tubeX0 + P.tubeL]);
+{
+  const g = [];
+  const rx0 = discAx - 9.5, rx1 = discBx + P.discT + 9.5;   // L95
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI / 4 + i * Math.PI / 2;
+    const y = Math.cos(a) * P.rodPCD / 2, z = Math.sin(a) * P.rodPCD / 2;
+    const r = cylX(P.rodD, rx0, rx1 - rx0, 16); r.translate(0, y, z); g.push([r, M.steel]);
+    for (const [wx, nx] of [[discAx - 1.2, discAx - 6.2], [discBx + P.discT, discBx + P.discT + 1.2]]) {
+      const w = cylX(15, wx, 1.2, 24); w.translate(0, y, z); g.push([w, M.steel]);   // 加大墊片
+      const n = cylX(9, nx, 5, 6); n.translate(0, y, z); g.push([n, M.steel]);      // 尼龍防鬆螺母
+    }
+  }
+  addPart('M5 拉桿 ×4', 'M5 304 全牙螺桿，長 95 mm，在管子內部穿過兩塊擋板，兩端各一個加大墊片 + 尼龍防鬆螺母，伸出約 3 mm。', '標準件', '#e3e6ea', g, [rx0, rx1], { noExplode: true });
+}
+{
+  const g = [[ringX(P.lineOD, P.tubeOD, discAx + P.discT, P.tubeL - 2 * P.groove), M.line]];
+  // 出線：從捲筒頂部切線朝前方
+  const a = new THREE.Vector3(spoolCenter, 0, H + P.lineOD / 2), b = new THREE.Vector3(spoolCenter, 420, H + 75);
+  const len = a.distanceTo(b);
+  const c = new THREE.CylinderGeometry(0.9, 0.9, len, 8);
+  c.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize()));
+  c.translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
+  g.push([c, M.line]);
+  addPart('Dyneema 線 50 m', 'Ø1.0 mm 編織線，50 m 捲完外徑約 Ø96。出線方向朝前，排線機構和導向環另行設計（沿用原版舵機臂）。', '耗材', '#e8d23a', g, [discAx + P.discT, discBx]);
+}
+
+// ---------- 爆炸 ----------
+const explodeEl = document.getElementById('explode');
+function applyExplode() {
+  const t = +explodeEl.value;
+  for (const p of parts) {
+    if (p.noExplode) { p.group.position.set(0, 0, 0); continue; }
+    p.group.position.x = (p.xc - spoolCenter) * 0.9 * t;
+  }
+  // 線額外上抬，露出鋁管
+  parts.find(p => p.name.startsWith('Dyneema')).group.position.z = 130 * t;
+}
+explodeEl.addEventListener('input', applyExplode);
+
+// ---------- 剖切 ----------
+document.getElementById('clip').addEventListener('change', e => {
+  for (const m of mats) { m.clippingPlanes = e.target.checked ? [clipPlane] : []; m.needsUpdate = true; }
+});
+
+// ---------- 零件列表 ----------
+const list = document.getElementById('parts');
+const info = document.getElementById('info');
+function showInfo(p) {
+  info.innerHTML = `<b>${p.name}</b><span class="muted">${p.tag}</span><div>${p.spec}</div>`;
+  for (const li of list.children) li.classList.toggle('hi', li.dataset.name === p.name);
+}
+for (const p of parts) {
+  const li = document.createElement('li');
+  li.dataset.name = p.name;
+  li.innerHTML = `<input type="checkbox" checked><span class="sw" style="background:${p.color}"></span><span>${p.name}</span><span class="tag">${p.tag}</span>`;
+  const cb = li.querySelector('input');
+  cb.addEventListener('click', e => e.stopPropagation());
+  cb.addEventListener('change', () => { p.group.visible = cb.checked; });
+  li.addEventListener('click', () => { cb.checked = !cb.checked; p.group.visible = cb.checked; showInfo(p); });
+  li.addEventListener('mouseenter', () => showInfo(p));
+  list.appendChild(li);
+}
+
+// ---------- 懸停 ----------
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+let hovered = null;
+renderer.domElement.addEventListener('pointermove', e => {
+  const r = renderer.domElement.getBoundingClientRect();
+  mouse.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const objs = parts.filter(p => p.group.visible).flatMap(p => p.group.children);
+  let hits = ray.intersectObjects(objs, false);
+  if (document.getElementById('clip').checked) hits = hits.filter(h => h.point.y <= 0.5);
+  const hit = hits.find(h => h.object.material.opacity > 0.5) || hits[0];
+  const name = hit?.object.userData.part;
+  if (name !== hovered) {
+    hovered = name;
+    if (name) showInfo(parts.find(p => p.name === name));
+  }
+});
+
+// ---------- 視角 ----------
+const target = new THREE.Vector3(75, 0, 55);
+const views = {
+  iso: [new THREE.Vector3(420, 520, 380)],
+  front: [new THREE.Vector3(75, 700, 70)],
+  side: [new THREE.Vector3(-650, 120, 120)],
+  top: [new THREE.Vector3(75, 1, 800)],
+};
+function setView(k) {
+  camera.position.copy(views[k][0]); controls.target.copy(target); controls.update();
+}
+document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+setView('iso');
+
+// ---------- 渲染 ----------
+function resize() {
+  const w = view.clientWidth, h = view.clientHeight;
+  renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(view); resize();
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+applyExplode();
+</script>
+</body>
+</html>

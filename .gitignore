@@ -1,0 +1,17 @@
+# 原版代碼的本地拷貝，見 README 裏的原版倉庫連結
+powerplant-main/
+
+# 參考論文（有版權，不上傳）
+*.pdf
+
+# SolidWorks 臨時文件和鎖文件
+~$*
+*.SLDBAK
+
+# Python
+__pycache__/
+*.pyc
+
+# Windows
+Thumbs.db
+desktop.ini

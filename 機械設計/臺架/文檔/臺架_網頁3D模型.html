@@ -1,0 +1,619 @@
+<title>捲線器臺架 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+  /* Layout: full-height 3D viewport + right-hand instrument panel (stacks under the view on phones).
+     Palette: cool workshop greys, one accent = the orange Dyneema line. */
+  :root {
+    --bg: #eef1f4; --panel: #ffffff; --fg: #1b2229; --muted: #5d6873; --rule: #d6dce2;
+    --accent: #cf5a26; --scene: #e8ecf0; --grid1: #c3cad2; --grid2: #dde2e8;
+    --up: #2e7d55; --down: #b0451c; --hold: #5d6873;
+    --sans: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #11151a; --panel: #181e25; --fg: #e3e8ed; --muted: #93a0ac; --rule: #2b343e;
+      --accent: #f07a42; --scene: #141a20; --grid1: #36404b; --grid2: #222a32;
+      --up: #4cc38a; --down: #f08a5d; --hold: #93a0ac; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #11151a; --panel: #181e25; --fg: #e3e8ed; --muted: #93a0ac; --rule: #2b343e;
+    --accent: #f07a42; --scene: #141a20; --grid1: #36404b; --grid2: #222a32;
+    --up: #4cc38a; --down: #f08a5d; --hold: #93a0ac; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { background: var(--bg); color: var(--fg); font: 14px/1.5 var(--sans); }
+  #app { display: flex; height: 100%; }
+  #view { flex: 1; position: relative; min-width: 0; background: var(--scene); }
+  #view canvas { display: block; touch-action: none; }
+  #side {
+    width: 350px; flex: none; background: var(--panel); border-left: 1px solid var(--rule); overflow-y: auto;
+    padding-block: 16px 28px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  h1 { font-size: 19px; font-weight: 700; margin: 0; letter-spacing: 0.02em; text-wrap: balance; }
+  .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  h2 { font-size: 12px; font-weight: 500; margin: 0 0 8px; color: var(--muted); letter-spacing: 0.08em; }
+  section { min-width: 0; }
+  .seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .seg button, .btns button {
+    font: inherit; font-size: 13px; color: var(--fg); background: var(--bg); border: 1px solid var(--rule);
+    border-radius: 6px; padding: 5px 0; cursor: pointer;
+  }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .btns button { padding: 5px 10px; }
+  .seg button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 500; }
+  button:hover { border-color: var(--accent); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 12px; }
+  .row label { font-size: 13px; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); margin: 6px 0 0; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin-top: 10px; }
+  .read { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; margin-top: 14px; }
+  .read div { display: flex; flex-direction: column; min-width: 0; }
+  .read span:first-child { font-size: 11px; color: var(--muted); }
+  .read .num { font-size: 18px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+    font-size: 13px; font-weight: 500; border: 1px solid currentColor; color: var(--hold); margin-top: 12px;
+  }
+  .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .pill.up { color: var(--up); } .pill.down { color: var(--down); }
+  .note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th { text-align: right; font-weight: 500; color: var(--muted); font-size: 11px; padding: 0 0 4px; }
+  th:first-child, td:first-child { text-align: left; }
+  td { text-align: right; padding: 3px 0; border-top: 1px dashed var(--rule); }
+  tr.cur td { color: var(--accent); }
+  .parts { list-style: none; padding: 0; margin: 0; }
+  .parts li { display: flex; align-items: center; gap: 8px; padding: 3px 4px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+  .parts li:hover, .parts li.hi { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .sw { width: 11px; height: 11px; border-radius: 3px; flex: none; border: 1px solid color-mix(in srgb, var(--fg) 25%, transparent); }
+  .parts .tag { margin-left: auto; font-size: 11px; color: var(--muted); white-space: nowrap; }
+  #info {
+    position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); bottom: 12px;
+    max-width: min(440px, calc(100% - 24px)); background: var(--panel); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 10px 12px; font-size: 13px;
+  }
+  #info b { display: block; font-weight: 500; }
+  #info .muted { color: var(--muted); font-size: 12px; }
+  .hint { position: absolute; right: max(12px, env(safe-area-inset-right, 0px)); top: 10px; color: var(--muted); font-size: 12px; }
+  @media (max-width: 760px) {
+    #app { flex-direction: column; }
+    #view { flex: 0 0 55%; }
+    #side { width: 100%; flex: 1 1 auto; border-left: none; border-top: 1px solid var(--rule); }
+    .hint { display: none; }
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+
+<div id="app">
+  <div id="view">
+    <div class="hint">拖動旋轉 · 右鍵平移 · 滾輪縮放 · 滑鼠停在零件上看說明</div>
+    <div id="info"><b>捲線器臺架</b><span class="muted">線從捲筒下方出來，經桌邊的滑輪轉向下，吊起槓鈴片。調電機電流，看重物上升或下降。</span></div>
+  </div>
+  <aside id="side">
+    <header>
+      <h1>捲線器臺架</h1>
+      <div class="sub">桌邊轉向滑輪 + 重物 · 單位 mm · 依臺架設計文檔 2026-10-30</div>
+    </header>
+
+    <section>
+      <h2>標定模擬（方法 2：重物升降）</h2>
+      <div class="seg" id="mass" role="group" aria-label="重物質量">
+        <button id="m25" data-m="2.5">2.5 kg</button>
+        <button id="m50" data-m="5">5 kg</button>
+        <button id="m75" data-m="7.5">7.5 kg</button>
+        <button id="m100" data-m="10">10 kg</button>
+      </div>
+      <div class="row"><label for="cur">電機電流</label><span class="num" id="curv">0.0 A</span></div>
+      <input id="cur" type="range" min="0" max="25" step="0.1" value="11.7">
+      <label class="check"><input id="demo" type="checkbox" checked> 自動演示（電流在平衡點上下擺動）</label>
+      <div class="pill" id="state">靜止</div>
+      <div class="read">
+        <div><span>電機拉力 k·I</span><span class="num" id="rF">0 N</span></div>
+        <div><span>重物重量</span><span class="num" id="rW">0 N</span></div>
+        <div><span>線速</span><span class="num" id="rV">0.00 m/s</span></div>
+        <div><span>放出的線</span><span class="num" id="rD">0 mm</span></div>
+      </div>
+      <div class="note" id="eqnote"></div>
+    </section>
+
+    <section>
+      <h2>預計讀數（按 k = 4.2 N/A；實際可能低到 3.6，以實測為準）</h2>
+      <table>
+        <thead><tr><th>重物</th><th>拉力 N</th><th>開始上升 I_up</th><th>開始下降 I_down</th></tr></thead>
+        <tbody id="cal"></tbody>
+      </table>
+      <div class="note">兩個電流取平均就是這個拉力對應的電流；差值的一半是摩擦。模擬裏摩擦按 0.4 A 算。</div>
+    </section>
+
+    <section>
+      <h2>視圖</h2>
+      <div class="btns">
+        <button data-view="iso">等軸測</button>
+        <button data-view="side">順著光軸看</button>
+        <button data-view="top">俯視</button>
+        <button data-view="pulley">滑輪特寫</button>
+      </div>
+      <label class="check"><input id="clip" type="checkbox"> 從中間剖開滑輪座和滑輪</label>
+    </section>
+
+    <section>
+      <h2>零件（點擊顯示/隱藏）</h2>
+      <ul class="parts" id="parts"></ul>
+    </section>
+
+    <section>
+      <h2>關鍵尺寸</h2>
+      <table>
+        <tbody>
+          <tr><td>捲筒軸心到桌邊</td><td class="num">250</td></tr>
+          <tr><td>線高（離桌面）</td><td class="num">59.5</td></tr>
+          <tr><td>滑輪軸心：伸出桌邊 / 離桌面</td><td class="num">30 / 39</td></tr>
+          <tr><td>滑輪外徑 / 槽底 / 寬</td><td class="num">Ø52 / Ø40 / 15</td></tr>
+          <tr><td>側板間隙（滑輪 + 2 × 凸台 0.8）</td><td class="num">16.6</td></tr>
+          <tr><td>橫樑 2020（中心距 80）</td><td class="num">2 × 200</td></tr>
+          <tr><td>線心半徑：捲筒 / 滑輪</td><td class="num">45.5 / 20.7</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </aside>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---------- 尺寸（mm）。世界座標：x 沿光軸，y 朝桌邊（出線方向），z 朝上，桌面 z = 0 ----------
+const H = 85, ZR = 20;            // 軸心離型材頂；型材頂離桌面
+const XL = 171;                   // 捲筒中間 = 線、滑輪座、兩根橫樑的中心
+const YE = 250;                   // 桌邊
+const AXLE = new THREE.Vector3(XL, YE + 30, ZR + 19);
+const R_DRUM = 45.5, R_SHEAVE = 20.7;
+const LINE_Y = AXLE.y + R_SHEAVE;  // 往下走的那段線
+const FLOOR = -750, TABLE_T = 25;
+const K = 4.2, G = 9.81, FRIC_A = 0.4, DAMP = 60;   // N/A；摩擦折合電流；N/(m/s)
+const Z_TOP = -15;                // 線末端最高（泡沫緩衝碰到滑輪）
+const HANG = 200;                 // 線末端到掛桿底
+const PAD_T = 30;
+const D_MAX = Z_TOP - (FLOOR + PAD_T + HANG);   // 行程
+
+const P = {
+  plateT: 10, plateW: 120, plateH: 125, footL: 35, footT: 8, gussetX: 30, gussetZ: 55, gussetT: 8, railY: 40,
+  motorD: 79, motorL: 100, shaftD: 12, shaftL: 40, mountPCD: 56, mountHole: 5.5, bossD: 40,
+  coupD: 40, coupL: 66, coupX0: 14, spoolShaftD: 15, spoolShaftX0: 56, spoolShaftL: 200,
+  plateAx: 0, plateBx: 100, plateCx: 226.5,
+  kflSpacing: 53, kflHole: 7, kflT: 6.5, kflW: 42, kflBossD: 34, kflBossL: 13,
+  flangeHubD: 35, flangeHubL: 20.4, flangeD: 56.8, flangeT: 6, flangeX0: 120.6,
+  discD: 140, discT: 8, rodPCD: 70, rodD: 5, tubeOD: 90, tubeID: 84, tubeL: 68, groove: 4,
+  railX0: -110, railL: 400,
+};
+const discAx = 133, discBx = discAx + P.discT + (P.tubeL - 2 * P.groove), tubeX0 = discAx + P.discT - P.groove;
+
+// ---------- 場景 ----------
+const view = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.localClippingEnabled = true;
+view.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, 2, 20000);
+camera.up.set(0, 0, 1);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.5));
+const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(500, 900, 1200); scene.add(sun);
+const fill = new THREE.DirectionalLight(0xffffff, 0.8); fill.position.set(-600, -400, 300); scene.add(fill);
+
+const clipPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), XL);
+const clipMats = [];
+function mat(color, o = {}) {
+  const m = new THREE.MeshStandardMaterial({ color, metalness: o.metal ?? 0.1, roughness: o.rough ?? 0.6, side: THREE.DoubleSide });
+  if (o.clip) clipMats.push(m);
+  return m;
+}
+const M = {
+  pla: mat(0xf0f0ea, { rough: 0.75 }), disc: mat(0xf2b04a, { rough: 0.7 }),
+  alu: mat(0xc9ced4, { metal: 0.35, rough: 0.4 }), steel: mat(0xd5d9de, { metal: 0.4, rough: 0.3 }),
+  dark: mat(0x2a2d31, { metal: 0.5, rough: 0.45 }), zinc: mat(0x9aa1a8, { metal: 0.3, rough: 0.45 }),
+  spider: mat(0xd2352c, { rough: 0.8 }), rail: mat(0xb3b9c0, { metal: 0.3, rough: 0.5 }),
+  stand: mat(0x9d94e0, { rough: 0.7, clip: true }), sheave: mat(0x3fb28f, { rough: 0.6, clip: true }),
+  bearing: mat(0xc7ccd2, { metal: 0.5, rough: 0.3, clip: true }), bolt: mat(0x8d949b, { metal: 0.5, rough: 0.35, clip: true }),
+  wood: mat(0xb48a5e, { rough: 0.85 }), legs: mat(0x6c737b, { metal: 0.2, rough: 0.6 }),
+  iron: mat(0x33373c, { metal: 0.4, rough: 0.55 }), foam: mat(0x7fb3d9, { rough: 0.95 }),
+  clampRed: mat(0xc0392b, { rough: 0.5 }), block: mat(0xd8b98a, { rough: 0.9 }),
+  line: new THREE.MeshStandardMaterial({ color: 0xcf5a26, roughness: 0.8 }),
+};
+
+// ---------- 幾何工具 ----------
+// 局部擠出 → 世界：在 yz 平面畫形狀、沿 x 擠出
+const toYZ = new THREE.Matrix4().set(0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1);
+function circlePath(cx, cy, r) { const p = new THREE.Path(); p.absarc(cx, cy, r, 0, Math.PI * 2, true); return p; }
+function extrudeYZ(shape, x0, depth) {
+  const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 48 });
+  g.applyMatrix4(toYZ); g.translate(x0, 0, 0); return g;
+}
+function cylX(d, x0, len, seg = 48) {
+  const g = new THREE.CylinderGeometry(d / 2, d / 2, len, seg); g.rotateZ(-Math.PI / 2); g.translate(x0 + len / 2, 0, H); return g;
+}
+function ringX(od, id, x0, len) {
+  const s = new THREE.Shape(); s.absarc(0, H, od / 2, 0, Math.PI * 2, false); s.holes.push(circlePath(0, H, id / 2));
+  return extrudeYZ(s, x0, len);
+}
+function boxG(x0, x1, y0, y1, z0, z1) {
+  const g = new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0); g.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); return g;
+}
+function cylZ(r, x, y, z0, z1, seg = 40) {
+  const g = new THREE.CylinderGeometry(r, r, z1 - z0, seg); g.rotateX(Math.PI / 2); g.translate(x, y, (z0 + z1) / 2); return g;
+}
+function hull(pts) {
+  pts = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const p of pts) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (const p of pts.reverse()) { while (up.length >= 2 && cross(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+}
+
+// ---------- 零件註冊 ----------
+const parts = [];
+function addPart(name, spec, tag, color, meshes, parent = scene) {
+  const group = new THREE.Group();
+  for (const [geo, m] of meshes) { const mesh = new THREE.Mesh(geo, m); mesh.userData.part = name; group.add(mesh); }
+  parent.add(group);
+  parts.push({ name, spec, tag, color, group });
+  return group;
+}
+
+// ---------- 捲線器（沿用捲線器網頁模型的尺寸；型材頂 z = 0，整體抬高 20 放到桌面上） ----------
+const winch = new THREE.Group(); winch.position.z = ZR; scene.add(winch);
+const rotor = new THREE.Group(); rotor.position.z = H; winch.add(rotor);   // 隨電機一起轉的零件，繞軸心轉
+const onAxis = g => { g.translate(0, 0, -H); return g; };
+
+function upright(x0, footDir, holeFn) {
+  const s = new THREE.Shape(), w = P.plateW / 2;
+  s.moveTo(-w, 0); s.lineTo(w, 0); s.lineTo(w, P.plateH - 12); s.quadraticCurveTo(w, P.plateH, w - 12, P.plateH);
+  s.lineTo(-w + 12, P.plateH); s.quadraticCurveTo(-w, P.plateH, -w, P.plateH - 12); s.lineTo(-w, 0);
+  holeFn(s);
+  const geos = [extrudeYZ(s, x0, P.plateT)];
+  const fx0 = footDir > 0 ? x0 + P.plateT : x0 - P.footL;
+  geos.push(boxG(fx0, fx0 + P.footL, -w, w, 0, P.footT));
+  for (const y of [-28, 28]) {
+    const t = new THREE.Shape(), xb = footDir > 0 ? x0 + P.plateT : x0;
+    t.moveTo(xb, P.footT); t.lineTo(xb + footDir * P.gussetX, P.footT); t.lineTo(xb, P.footT + P.gussetZ); t.lineTo(xb, P.footT);
+    const tg = new THREE.ExtrudeGeometry(t, { depth: P.gussetT, bevelEnabled: false });
+    tg.applyMatrix4(new THREE.Matrix4().set(1, 0, 0, 0, 0, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1));
+    tg.translate(0, y + P.gussetT / 2, 0); geos.push(tg);
+  }
+  return geos;
+}
+function kfl(xFlange, dir) {
+  const pts = [];
+  for (let i = 0; i < 48; i++) { const a = i / 48 * Math.PI * 2; pts.push([Math.cos(a) * P.kflW / 2, H + Math.sin(a) * P.kflW / 2]); }
+  for (const zc of [H - P.kflSpacing / 2, H + P.kflSpacing / 2])
+    for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2; pts.push([Math.cos(a) * 7, zc + Math.sin(a) * 7]); }
+  const hp = hull(pts);
+  const s = new THREE.Shape(); s.moveTo(hp[0][0], hp[0][1]); hp.slice(1).forEach(p => s.lineTo(p[0], p[1]));
+  s.holes.push(circlePath(0, H - P.kflSpacing / 2, P.kflHole / 2), circlePath(0, H + P.kflSpacing / 2, P.kflHole / 2), circlePath(0, H, P.kflBossD / 2 - 1));
+  const fx0 = dir > 0 ? xFlange : xFlange - P.kflT, bossX0 = dir > 0 ? xFlange : xFlange - P.kflBossL;
+  return [[extrudeYZ(s, fx0, P.kflT), M.zinc], [ringX(P.kflBossD, P.spoolShaftD + 4, bossX0, P.kflBossL), M.zinc]];
+}
+function disc(x0, drive) {
+  const s = new THREE.Shape(); s.absarc(0, H, P.discD / 2, 0, Math.PI * 2, false);
+  s.holes.push(circlePath(0, H, (drive ? 35.4 : 15.2) / 2));
+  for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + i * Math.PI / 2; s.holes.push(circlePath(Math.cos(a) * 35, H + Math.sin(a) * 35, 2.75)); }
+  s.holes.push(circlePath(0, H + 48, 1.5));
+  return extrudeYZ(s, x0, P.discT);
+}
+{
+  const g = [];
+  for (const y of [-P.railY, P.railY]) g.push([boxG(P.railX0, P.railX0 + P.railL, y - 10, y + 10, -20, 0), M.rail]);
+  const plA = upright(P.plateAx, +1, s => {
+    s.holes.push(circlePath(0, H, P.bossD / 2));
+    for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + i * Math.PI / 2; s.holes.push(circlePath(Math.cos(a) * 28, H + Math.sin(a) * 28, 2.75)); }
+  });
+  const kflHoles = s => { s.holes.push(circlePath(0, H, 18), circlePath(0, H - 26.5, 3.25), circlePath(0, H + 26.5, 3.25)); };
+  for (const geo of [...plA, ...upright(P.plateBx, -1, kflHoles), ...upright(P.plateCx, +1, kflHoles)]) g.push([geo, M.pla]);
+  g.push(...kfl(P.plateBx, -1), ...kfl(P.plateCx + P.plateT, +1));
+  g.push([cylX(P.motorD - 6, -3, 3, 64), M.zinc]);
+  addPart('捲線器本體', '已裝好的直驅捲線器：兩根 400 mm 2020 型材、立板 A/B/C、兩個 KFL002。這裏只看它和臺架怎麼連；細節見捲線器網頁模型。', '已有', '#f0f0ea', g, winch);
+}
+{
+  const g = [];
+  g.push([onAxis(cylX(P.motorD, -P.motorL, P.motorL - 3, 64)), M.dark]);
+  for (let i = 0; i < 12; i++) {
+    const a = i / 12 * Math.PI * 2, bb = boxG(-P.motorL + 8, -10, -3, 3, P.motorD / 2 - 1.5, P.motorD / 2 + 0.6);
+    bb.applyMatrix4(new THREE.Matrix4().makeRotationX(a)); g.push([bb, M.zinc]);
+  }
+  g.push([onAxis(cylX(P.shaftD, 0, P.shaftL)), M.steel]);
+  const hubL = (P.coupL - 16) / 2;
+  g.push([onAxis(cylX(P.coupD, P.coupX0, hubL)), M.alu], [onAxis(cylX(P.coupD - 6, P.coupX0 + hubL, 16)), M.spider], [onAxis(cylX(P.coupD, P.coupX0 + hubL + 16, hubL)), M.alu]);
+  g.push([onAxis(cylX(P.spoolShaftD, P.spoolShaftX0, P.spoolShaftL)), M.steel]);
+  g.push([onAxis(ringX(P.flangeHubD, P.spoolShaftD, P.flangeX0, P.flangeHubL)), M.steel]);
+  g.push([onAxis(disc(discAx, true)), M.disc], [onAxis(disc(discBx, false)), M.disc]);
+  g.push([onAxis(ringX(P.tubeOD, P.tubeID, tubeX0, P.tubeL)), M.alu]);
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI / 4 + i * Math.PI / 2, y = Math.cos(a) * 35, z = Math.sin(a) * 35;
+    const r = onAxis(cylX(P.rodD, discAx - 9.5, discBx + P.discT + 19 - discAx, 16)); r.translate(0, y, z); g.push([r, M.steel]);
+  }
+  g.push([onAxis(ringX(92.2, 90, XL - 2, 4)), M.line]);
+  addPart('捲筒和電機轉子', '直驅：電機外轉子、梅花聯軸器、光軸、法蘭、捲筒一起轉。放線時捲筒下緣朝桌邊轉。捲筒上只繞幾圈測試線，線心半徑 45.5。', '隨電機轉', '#f2b04a', g, rotor);
+}
+
+// ---------- 桌子和地面 ----------
+{
+  const g = [[boxG(-320, 540, -460, YE, -TABLE_T, 0), M.wood]];
+  for (const [x, y] of [[-290, -430], [510, -430], [-290, YE - 30], [510, YE - 30]]) g.push([boxG(x - 20, x + 20, y - 20, y + 20, FLOOR, -TABLE_T), M.legs]);
+  addPart('桌子', '桌高按 750 算。F 夾要夾的地方（離桌邊約 60 mm）下面不能有抽屜；掛重物的地方下面要空。', '已有', '#b48a5e', g);
+}
+let grid;
+function makeGrid(c1, c2) {
+  if (grid) scene.remove(grid);
+  grid = new THREE.GridHelper(2400, 48, c1, c2); grid.rotation.x = Math.PI / 2; grid.position.set(XL, 0, FLOOR); scene.add(grid);
+}
+
+// ---------- 橫樑和角碼 ----------
+{
+  const g = [];
+  for (const bx of [XL - 40, XL + 40]) {
+    g.push([boxG(bx - 10, bx + 10, 50, YE, 0, 20), M.rail]);
+    for (const s of [-1, 1]) {
+      g.push([boxG(Math.min(bx + s * 10, bx + s * 30), Math.max(bx + s * 10, bx + s * 30), 50, 53, 2, 18), M.zinc]);
+      g.push([boxG(Math.min(bx + s * 10, bx + s * 13), Math.max(bx + s * 10, bx + s * 13), 50, 70, 2, 18), M.zinc]);
+    }
+  }
+  addPart('2020 橫樑 ×2 + 角碼 ×4', '各長 200，垂直於桌邊，中心距 80。一頭用角碼接在近桌邊那根型材的外側面，另一頭和桌邊齊平。捲筒和滑輪連成一個框，線的水平拉力在框裏抵消。', '外購', '#b3b9c0', g);
+}
+
+// ---------- 滑輪座（局部座標 xs 朝桌外、ys 沿桌邊、zs 從橫樑頂往上） ----------
+const toWorldStand = new THREE.Matrix4().set(0, -1, 0, XL, 1, 0, 0, YE, 0, 0, 1, ZR, 0, 0, 0, 1);
+const toStandFromXZ = (y0) => new THREE.Matrix4().set(1, 0, 0, 0, 0, 0, -1, y0, 0, 1, 0, 0, 0, 0, 0, 1);  // 在 xs-zs 平面畫、沿 -ys 擠出
+const standGeo = g => g.applyMatrix4(toWorldStand);
+{
+  const g = [];
+  const base = new THREE.Shape(); base.moveTo(-30, -50); base.lineTo(0, -50); base.lineTo(0, 50); base.lineTo(-30, 50); base.lineTo(-30, -50);
+  base.holes.push(circlePath(-15, -40, 2.75), circlePath(-15, 40, 2.75));
+  g.push([standGeo(new THREE.ExtrudeGeometry(base, { depth: 8, bevelEnabled: false, curveSegments: 24 })), M.stand]);
+  const prof = [[-30, 0], [58, 0], [58, 44], [52, 49], [40, 49], [-30, 16]];
+  for (const y0 of [-8.3, 16.3]) {
+    const s = new THREE.Shape(); s.moveTo(...prof[0]); prof.slice(1).forEach(p => s.lineTo(...p)); s.lineTo(...prof[0]);
+    s.holes.push(circlePath(30, 19, 4.2), circlePath(50.4, 39.4, 2.2));
+    const cg = new THREE.ExtrudeGeometry(s, { depth: 8, bevelEnabled: false, curveSegments: 32 });
+    cg.applyMatrix4(toStandFromXZ(y0)); g.push([standGeo(cg), M.stand]);
+  }
+  for (const s of [-1, 1]) {
+    const b = new THREE.CylinderGeometry(5.5, 5.5, 0.8, 32); b.translate(30, s * 7.9, 19); g.push([standGeo(b), M.stand]);
+  }
+  addPart('滑輪座（打印）', '底板 30 × 100 × 8 橫跨兩根橫樑，2 顆 M5 × 16 擰進 T 型螺母。兩片 8 mm 側板間隙 16.6；內側 Ø11 × 0.8 凸台只頂軸承內圈，側縫比線細，線卡不進去。打印時底板朝下，不用支撐。', '3D 打印', '#9d94e0', g);
+}
+{
+  const g = [];
+  const yAxis = (r, y0, y1, seg) => { const c = new THREE.CylinderGeometry(r, r, y1 - y0, seg); c.translate(0, (y0 + y1) / 2, 0); return c; };
+  const at = (geo, xs, zs) => { geo.translate(xs, 0, zs); return standGeo(geo); };
+  g.push([at(yAxis(4, -23.2, 27, 24), 30, 19), M.bolt], [at(yAxis(7.5, -23.2, -17.9, 6), 30, 19), M.bolt],
+         [at(yAxis(8, -17.9, -16.3, 24), 30, 19), M.bolt], [at(yAxis(8, 16.3, 17.9, 24), 30, 19), M.bolt],
+         [at(yAxis(7.5, 17.9, 25.9, 6), 30, 19), M.bolt]);
+  g.push([at(yAxis(2, -19.9, 24, 16), 50.4, 39.4), M.bolt], [at(yAxis(3.5, -19.9, -17.1, 6), 50.4, 39.4), M.bolt],
+         [at(yAxis(4, 17.1, 22.1, 6), 50.4, 39.4), M.bolt]);
+  for (const ys of [-40, 40]) {
+    const w = new THREE.CylinderGeometry(7.5, 7.5, 2.2, 24); w.rotateX(Math.PI / 2); w.translate(-15, ys, 9.1); g.push([standGeo(w), M.bolt]);
+    const h = new THREE.CylinderGeometry(4.25, 4.25, 5, 24); h.rotateX(Math.PI / 2); h.translate(-15, ys, 12.7); g.push([standGeo(h), M.bolt]);
+  }
+  addPart('M8 滑輪軸 / M4 擋線銷 / M5 螺絲', 'M8 × 50 外六角 + 尼龍螺母當滑輪軸。M4 × 45 擋線銷在滑輪斜上方 45°，表面離輪緣 0.8 mm，線跳不出槽。底板 2 顆 M5 × 16 疊加大墊片 + 平墊片。', '外購', '#8d949b', g);
+}
+
+// ---------- 滑輪（旋轉）+ 軸承 ----------
+const sheave = new THREE.Group(); sheave.position.copy(AXLE); scene.add(sheave);
+{
+  const prof = [[11, 0], [26, 0], [26, 1.5], [20, 7.5], [26, 13.5], [26, 15], [11, 15], [11, 8], [9.5, 8], [9.5, 7], [11, 7], [11, 0]];
+  const lg = new THREE.LatheGeometry(prof.map(([r, a]) => new THREE.Vector2(r, a)), 72);
+  lg.translate(0, -7.5, 0); lg.rotateZ(-Math.PI / 2);
+  const tick = new THREE.BoxGeometry(0.6, 3, 4); tick.translate(7.8, 0, 23);
+  addPart('滑輪（打印）', 'Ø52 × 15，90° V 槽，槽底 Ø40。兩側各壓一個 608ZZ，中間 1 mm 擋肩。平放打印，槽的斜面正好 45°，不用支撐。綠色上的黑色小塊用來看它轉。', '3D 打印', '#3fb28f',
+    [[lg, M.sheave], [tick, M.dark]], sheave);
+}
+{
+  const g = [];
+  for (const x0 of [-7.5, 0.5]) {
+    const s = new THREE.Shape(); s.absarc(0, 0, 11, 0, Math.PI * 2, false); s.holes.push(circlePath(0, 0, 4));
+    const rg = new THREE.ExtrudeGeometry(s, { depth: 7, bevelEnabled: false, curveSegments: 40 });
+    rg.rotateY(Math.PI / 2); rg.translate(AXLE.x + x0, AXLE.y, AXLE.z); g.push([rg, M.bearing]);
+  }
+  addPart('608ZZ 軸承 ×2', '8 × 22 × 7，壓進滑輪兩側的 Ø22.0 孔。勾上「剖開」看得到。', '外購', '#c7ccd2', g);
+}
+
+// ---------- 線 ----------
+const lineParts = [];
+{
+  const horiz = new THREE.CylinderGeometry(0.9, 0.9, AXLE.y, 10); horiz.translate(XL, AXLE.y / 2, ZR + H - R_DRUM);
+  const arc = new THREE.CatmullRomCurve3(Array.from({ length: 21 }, (_, i) => {
+    const a = i / 20 * Math.PI / 2; return new THREE.Vector3(XL, AXLE.y + R_SHEAVE * Math.sin(a), AXLE.z + R_SHEAVE * Math.cos(a));
+  }));
+  const vert = new THREE.CylinderGeometry(0.9, 0.9, 1, 10); vert.rotateX(Math.PI / 2); vert.translate(0, 0, -0.5);
+  const grp = addPart('Dyneema 測試線 1.5 m', 'Ø1.0。從捲筒下方出來，水平走到滑輪（離桌面 59.5），在滑輪上轉 90° 往下。只用一段 1.5 m，出事時捲筒能收回的線很少。', '耗材', '#cf5a26',
+    [[horiz, M.line], [new THREE.TubeGeometry(arc, 24, 0.9, 10), M.line], [vert, M.line]]);
+  lineParts.push(grp.children[2]);
+  grp.children[2].position.set(XL, LINE_Y, AXLE.z);
+}
+
+// ---------- 重物掛桿 ----------
+const hanger = new THREE.Group(); hanger.position.set(XL, LINE_Y, Z_TOP); scene.add(hanger);
+const plateGroup = new THREE.Group();
+{
+  const g = [];
+  g.push([cylZ(9, 0, 0, 2, 27), M.foam]);
+  const sh = new THREE.TorusGeometry(10, 2.2, 10, 36); sh.rotateX(Math.PI / 2); sh.scale(1, 1, 1.4); sh.translate(0, 0, -12); g.push([sh, M.bolt]);
+  const eye = new THREE.TorusGeometry(9, 3, 10, 36); eye.rotateY(Math.PI / 2); eye.translate(0, 0, -30); g.push([eye, M.steel]);
+  g.push([cylZ(9, 0, 0, -48, -38), M.steel], [cylZ(6, 0, 0, -HANG, -45), M.steel],
+         [cylZ(10, 0, 0, -HANG, -HANG + 10, 6), M.steel], [cylZ(18.5, 0, 0, -HANG + 10, -HANG + 13), M.steel]);
+  addPart('掛桿 + 槓鈴片', '線末端單套結 → D 形扣 → M12 吊環螺母 → M12 螺桿疊槓鈴片，底下大墊片 + 雙螺母。D 形扣上方套一小段泡沫，拉到頂先撞泡沫。槓鈴片直徑約 19 cm，有一半在桌面下方。', '外購', '#33373c', g, hanger);
+  parts[parts.length - 1].group.add(plateGroup);
+}
+function setPlates(m) {
+  plateGroup.clear();
+  const list = { 2.5: [2.5], 5: [2.5, 2.5], 7.5: [2.5, 2.5, 2.5], 10: [2.5, 2.5, 2.5, 1.25, 1.25] }[m];
+  let z = -HANG + 13;
+  for (const kg of list) {
+    const [r, t] = kg === 2.5 ? [95, 17] : [80, 13];
+    const s = new THREE.Shape(); s.absarc(0, 0, r, 0, Math.PI * 2, false); s.holes.push(circlePath(0, 0, 14));
+    const pg = new THREE.ExtrudeGeometry(s, { depth: t - 0.6, bevelEnabled: false, curveSegments: 64 }); pg.translate(0, 0, z);
+    const mesh = new THREE.Mesh(pg, M.iron); mesh.userData.part = '掛桿 + 槓鈴片'; plateGroup.add(mesh);
+    z += t;
+  }
+}
+
+// ---------- F 夾 + 泡沫墊 ----------
+{
+  const g = [];
+  for (const bx of [XL - 40, XL + 40]) {
+    g.push([boxG(bx - 15, bx + 15, 172, 208, 20, 42), M.block]);
+    g.push([boxG(bx - 7, bx + 7, 180, 272, 42, 50), M.dark]);
+    g.push([boxG(bx - 6, bx + 6, 262, 272, -60, 50), M.steel]);
+    g.push([boxG(bx - 15, bx + 15, 172, 208, -31, -TABLE_T), M.block]);
+    g.push([boxG(bx - 7, bx + 7, 180, 272, -45, -31), M.dark]);
+    g.push([cylZ(5, bx, 190, -95, -45, 20), M.steel], [cylZ(11, bx, 190, -125, -95, 24), M.clampRed]);
+  }
+  addPart('F 夾 ×2', '夾兩根橫樑離桌邊約 60 mm 處。上爪下面墊 ≥ 20 mm 厚木塊，夾臂從滑輪座底板和螺絲頭上方越過；下爪墊薄木片。喉深 ≥ 80。', '外購', '#c0392b', g);
+}
+addPart('泡沫墊', '鋪在地上接住重物。', '耗材', '#7fb3d9', [[boxG(XL - 170, XL + 170, LINE_Y - 170, LINE_Y + 170, FLOOR, FLOOR + PAD_T), M.foam]]);
+
+// ---------- 剖切 ----------
+document.getElementById('clip').addEventListener('change', e => {
+  for (const m of clipMats) { m.clippingPlanes = e.target.checked ? [clipPlane] : []; m.needsUpdate = true; }
+});
+
+// ---------- 零件列表 + 懸停 ----------
+const list = document.getElementById('parts'), info = document.getElementById('info');
+function showInfo(p) {
+  info.innerHTML = `<b>${p.name}</b><span class="muted">${p.tag}</span><div>${p.spec}</div>`;
+  for (const li of list.children) li.classList.toggle('hi', li.dataset.name === p.name);
+}
+for (const p of parts) {
+  const li = document.createElement('li'); li.dataset.name = p.name;
+  li.innerHTML = `<input type="checkbox" checked aria-label="顯示 ${p.name}"><span class="sw" style="background:${p.color}"></span><span>${p.name}</span><span class="tag">${p.tag}</span>`;
+  const cb = li.querySelector('input');
+  cb.addEventListener('click', e => e.stopPropagation());
+  cb.addEventListener('change', () => { p.group.visible = cb.checked; });
+  li.addEventListener('click', () => { cb.checked = !cb.checked; p.group.visible = cb.checked; showInfo(p); });
+  li.addEventListener('mouseenter', () => showInfo(p));
+  list.appendChild(li);
+}
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+let hovered = null;
+renderer.domElement.addEventListener('pointermove', e => {
+  const r = renderer.domElement.getBoundingClientRect();
+  mouse.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const objs = []; scene.traverseVisible(o => { if (o.isMesh && o.userData.part) objs.push(o); });
+  let hits = ray.intersectObjects(objs, false);
+  if (document.getElementById('clip').checked) hits = hits.filter(h => !clipMats.includes(h.object.material) || h.point.x <= XL + 0.5);
+  const name = hits[0]?.object.userData.part;
+  if (name && name !== hovered) { hovered = name; showInfo(parts.find(p => p.name === name)); }
+});
+
+// ---------- 視角 ----------
+const views = {
+  iso: [[820, 1150, 480], [XL, 120, -110]],
+  side: [[1650, 160, -120], [XL, 160, -170]],
+  top: [[XL, 60, 1500], [XL, 60, 0]],
+  pulley: [[430, 560, 210], [XL, 275, 25]],
+};
+function setView(k) { const [c, t] = views[k]; camera.position.set(...c); controls.target.set(...t); controls.update(); }
+document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+setView('iso');
+
+// ---------- 主題 ----------
+function applyTheme() {
+  const cs = getComputedStyle(document.documentElement), v = n => cs.getPropertyValue(n).trim();
+  scene.background = new THREE.Color(v('--scene'));
+  makeGrid(new THREE.Color(v('--grid1')), new THREE.Color(v('--grid2')));
+  M.line.color.set(v('--accent'));
+}
+applyTheme();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+// ---------- 標定模擬 ----------
+const curEl = document.getElementById('cur'), demoEl = document.getElementById('demo');
+const el = id => document.getElementById(id);
+let mass = 5, d = D_MAX / 2, v = 0, t = 0;
+if (matchMedia('(prefers-reduced-motion: reduce)').matches) demoEl.checked = false;
+function iEq() { return mass * G / K; }
+function setMass(m) {
+  mass = m; setPlates(m);
+  document.querySelectorAll('#mass button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.m === m)));
+  if (!demoEl.checked) curEl.value = iEq().toFixed(1);
+  const w = m * G;
+  el('eqnote').textContent = `${m} kg：電流加到約 ${(w / K + FRIC_A).toFixed(1)} A 重物開始上升，減到約 ${(w / K - FRIC_A).toFixed(1)} A 開始下降，中間不動。`;
+  for (const tr of el('cal').children) tr.classList.toggle('cur', +tr.dataset.m === m);
+}
+for (const m of [2.5, 5, 7.5, 10]) {
+  const w = m * G, tr = document.createElement('tr'); tr.dataset.m = m;
+  tr.innerHTML = `<td>${m} kg</td><td class="num">${w.toFixed(1)}</td><td class="num">${(w / K + FRIC_A).toFixed(1)} A</td><td class="num">${(w / K - FRIC_A).toFixed(1)} A</td>`;
+  el('cal').appendChild(tr);
+}
+document.querySelectorAll('#mass button').forEach(b => b.addEventListener('click', () => setMass(+b.dataset.m)));
+curEl.addEventListener('input', () => { demoEl.checked = false; });
+setMass(5);
+
+const stateEl = el('state');
+function step(dt) {
+  t += dt;
+  if (demoEl.checked) curEl.value = (iEq() + 2.6 * Math.sin(t * 0.7)).toFixed(1);
+  const I = +curEl.value, F = K * I, W = mass * G, net = F - W, fr = K * FRIC_A;
+  const vT = Math.abs(net) <= fr ? 0 : Math.max(-0.35, Math.min(0.35, (net - Math.sign(net) * fr) / DAMP));
+  v += (vT - v) * Math.min(1, dt * 6);
+  d = Math.max(0, Math.min(D_MAX, d - v * 1000 * dt));
+  let label = '靜止', cls = '';
+  if (d <= 0 && vT > 0) { v = 0; label = '到頂：泡沫緩衝頂住滑輪'; }
+  else if (d >= D_MAX && vT < 0) { v = 0; label = '落地：重物躺在泡沫墊上'; }
+  else if (v > 0.003) { label = '收線：重物上升'; cls = 'up'; }
+  else if (v < -0.003) { label = '放線：重物下降'; cls = 'down'; }
+  stateEl.textContent = label; stateEl.className = 'pill ' + cls;
+  el('curv').textContent = I.toFixed(1) + ' A';
+  el('rF').textContent = F.toFixed(1) + ' N';
+  el('rW').textContent = W.toFixed(1) + ' N';
+  el('rV').textContent = Math.abs(v).toFixed(2) + ' m/s';
+  el('rD').textContent = Math.round(d) + ' / ' + Math.round(D_MAX) + ' mm';
+  pose();
+}
+function pose() {
+  const ze = Z_TOP - d;
+  hanger.position.z = ze;
+  lineParts[0].scale.z = AXLE.z - ze;
+  rotor.rotation.x = d / R_DRUM;
+  sheave.rotation.x = -d / R_SHEAVE;
+}
+
+// ---------- 導出動圖用：rigFrame(秒, 鏡頭擺角°, 拉近倍數, 視角) 停掉實時動畫，按 8 秒一個來回畫出那一幀 ----------
+window.rigFrame = (sec, deg, zoom = 1, viewName = 'iso') => {
+  renderer.setAnimationLoop(null);
+  d = D_MAX * (0.25 - 0.2 * Math.sin(2 * Math.PI * sec / 8));
+  pose();
+  const [c, tg] = views[viewName], a = deg * Math.PI / 180;
+  const ox = (c[0] - tg[0]) * zoom, oy = (c[1] - tg[1]) * zoom;
+  camera.position.set(tg[0] + ox * Math.cos(a) - oy * Math.sin(a), tg[1] + ox * Math.sin(a) + oy * Math.cos(a),
+                      tg[2] + (c[2] - tg[2]) * zoom);
+  camera.lookAt(...tg);
+  renderer.render(scene, camera);
+};
+
+// ---------- 渲染 ----------
+function resize() { const w = view.clientWidth, h = view.clientHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(view); resize();
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => { step(Math.min(0.05, clock.getDelta())); controls.update(); renderer.render(scene, camera); });
+</script>

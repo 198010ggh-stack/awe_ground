@@ -1,0 +1,8 @@
+# CAD 和打印文件按二進制處理，不做換行符轉換
+*.SLDPRT binary
+*.SLDASM binary
+*.STEP binary
+*.step binary
+*.STL binary
+*.stl binary
+*.3mf binary
