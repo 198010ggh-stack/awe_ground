@@ -3,8 +3,8 @@
 Design: 機械設計/臺架/文檔/臺架設計文檔_2026-10-30.md
 Part frames are chosen so the exported STL already lies in its print orientation (model +Z up):
   sheave  - axis along Z, faces at z = 0 and 15 (or -15..0)
-  stand   - X along the line (table edge at x = 0, outward +), Y along the table edge,
-            Z up from the stand's underside (= top of the 2020 cross beams, table z = 20).
+  stand   - (v2) X along the line from the outer face of the winch's near 2020 rail (table edge at x = 35),
+            Y along the table edge, Z up from the table top.
 Run as build_rig.py [sheave|stand].
 """
 import math
@@ -27,14 +27,16 @@ SHEAVE_D, SHEAVE_W = 52.0, 15.0
 GROOVE_ROOT_D, GROOVE_RIM = 40.0, 1.5         # 90° V groove, depth (52-40)/2 = 6, rim flats 1.5 each side
 BEARING_D, BEARING_W = 22.0, 7.0              # 608ZZ seats from both faces
 LIP_D = 19.0                                  # 1 mm shoulder between the bearings, bears on the outer ring only
-# stand (z measured from the stand underside; table z = 20 + this)
-BASE_X0, BASE_Y, BASE_T = -30.0, 50.0, 8.0    # base x -30..0, y ±50
-BASE_HOLE_X, BASE_HOLE_Y, BASE_HOLE_D = -15.0, 40.0, 5.5
-CHEEK_T, CHEEK_GAP = 8.0, 16.6                # gap = sheave 15 + 2 x boss 0.8
-AXLE_X, AXLE_Z, AXLE_D = 30.0, 19.0, 8.4      # line at table z 59.5 = 20 + 19 + 20.7 (line centre in the V root)
+# stand v2: bolted to the winch's near rail, sits on the table (z from the table top)
+FLANGE_T, FLANGE_Y, FLANGE_H = 8.0, 50.0, 20.0        # upright flange bearing on the rail's outer face, y ±50, as tall as the rail
+RAIL_HOLE_Y, RAIL_HOLE_Z, RAIL_HOLE_D = 40.0, 10.0, 5.5   # 2 x M5 x 16 into hammer T-nuts in the rail's side slot
+PAD_X1, PAD_Y0, PAD_Y1, PAD_T = 35.0, 16.3, 31.0, 8.0     # feet beside the cheeks; front edge flush with the table edge;
+                                                          # stop at y 31 so the Ø15 washer under each M5 head clears them
+CHEEK_T, CHEEK_GAP = 8.0, 16.6                # gap = sheave 15 + 2 x boss 0.8; open underneath so the sheave goes in from below
+AXLE_X, AXLE_Z, AXLE_D = 30.0, 39.0, 8.4      # line at table z 59.7 = 39 + 20.7 (line centre in the V root); drum line 59.5
 BOSS_D, BOSS_H = 11.0, 0.8                    # bears on the 608 inner ring only
-KEEPER_R, KEEPER_ANGLE, KEEPER_D = 28.8, 45.0, 4.4   # M4 pin, 0.8 mm outside the sheave rim
-CHEEK_PROFILE = [(-30.0, 0.0), (58.0, 0.0), (58.0, 44.0), (52.0, 49.0), (40.0, 49.0), (-30.0, 16.0)]
+KEEPER_R, KEEPER_ANGLE, KEEPER_D = 29.3, 45.0, 5.0   # printed Ø5 bar between the cheeks, surface 0.8 mm outside the sheave rim
+CHEEK_PROFILE = [(0.0, 0.0), (58.0, 0.0), (58.0, 60.0), (50.0, 69.0), (22.0, 69.0), (0.0, 36.0)]
 
 
 def polygon_area_centroid(pts):
@@ -102,27 +104,33 @@ def build_sheave(session):
 
 def build_stand(session):
     model = session.new_part()
-    print("[滑輪座]")
+    print("[滑輪座 v2]")
 
-    # 1) base on Front Plane (XY), thickness +Z (0..BASE_T), two M5 holes over the cross beams
+    # 1) flange on Front Plane (XY), x 0..FLANGE_T, height +Z 0..FLANGE_H
     with sketch(model, "Front Plane") as sk:
-        sketch_corner_rectangle(model, mm(BASE_X0), mm(-BASE_Y), 0, mm(BASE_Y))
-        for y in (-BASE_HOLE_Y, BASE_HOLE_Y):
-            sketch_circle(model, mm(BASE_HOLE_X), mm(y), mm(BASE_HOLE_D / 2))
-    v_base = (-BASE_X0 * 2 * BASE_Y - 2 * math.pi * (BASE_HOLE_D / 2) ** 2) * BASE_T / 1000
-    feature_checked(model, lambda d: extrude_boss(model, sk, mm(BASE_T), direction=d),
-                    lambda b, v: b and near(b[2], 0) and near(b[5], BASE_T) and abs(v - v_base) < 0.01, "base")
+        sketch_corner_rectangle(model, 0, mm(-FLANGE_Y), mm(FLANGE_T), mm(FLANGE_Y))
+    v_flange = FLANGE_T * 2 * FLANGE_Y * FLANGE_H / 1000
+    feature_checked(model, lambda d: extrude_boss(model, sk, mm(FLANGE_H), direction=d),
+                    lambda b, v: b and near(b[2], 0) and near(b[5], FLANGE_H) and abs(v - v_flange) < 0.01, "flange")
 
-    # 2) cheeks: side profile on Top Plane (XZ), mid-plane slab of both cheeks, then cut the gap between them
-    #    (the gap cut skips the base so the base stays one piece between the cheeks)
+    # 2) two feet on the table beside the cheeks (nothing between the cheeks, so the sheave fits in from below)
+    with sketch(model, "Front Plane") as psk:
+        for s in (-1, 1):
+            sketch_corner_rectangle(model, mm(FLANGE_T), mm(s * PAD_Y0), mm(PAD_X1), mm(s * PAD_Y1))
+    v_pads = 2 * (PAD_X1 - FLANGE_T) * (PAD_Y1 - PAD_Y0) * PAD_T / 1000
+    feature_checked(model, lambda d: extrude_boss(model, psk, mm(PAD_T), direction=d),
+                    lambda b, v: b and near(b[2], 0) and near(b[5], FLANGE_H) and abs((v - v_flange) - v_pads) < 0.01,
+                    "feet")
+
+    # 3) cheeks: side profile on Top Plane (XZ), mid-plane slab of both cheeks, then cut the gap between them
+    #    (the gap cut skips the flange so the flange stays one piece across the gap)
     outer = CHEEK_GAP + 2 * CHEEK_T
     a_p, _, _ = polygon_area_centroid(CHEEK_PROFILE)
-    gap_profile = ([(BASE_X0, BASE_T), (0.0, BASE_T), (0.0, 0.0)] + CHEEK_PROFILE[1:-1]
-                   + [(BASE_X0, CHEEK_PROFILE[-1][1])])
+    gap_profile = ([(FLANGE_T, 0.0)] + CHEEK_PROFILE[1:] + [(0.0, FLANGE_H), (FLANGE_T, FLANGE_H)])
     a_q, _, _ = polygon_area_centroid(gap_profile)
     z_top = max(z for _, z in CHEEK_PROFILE)
     v0 = volume_cm3(model)
-    slab_add = (a_p * outer - (-BASE_X0) * BASE_T * outer) / 1000   # the base block inside the slab already exists
+    slab_add = (a_p * outer - FLANGE_T * FLANGE_H * outer) / 1000   # the flange block inside the slab already exists
     zsign = None
     for sign in (1, -1):
         with sketch(model, "Top Plane") as tsk:
@@ -131,7 +139,7 @@ def build_stand(session):
         if feat is not None:
             box, v = body_box(model), volume_cm3(model)
             # x check guards against a mirrored Top Plane sketch x axis (cheeks must reach out to +58)
-            if (near(box[0], BASE_X0) and near(box[3], CHEEK_PROFILE[1][0]) and near(box[2], 0)
+            if (near(box[0], 0) and near(box[3], CHEEK_PROFILE[1][0]) and near(box[2], 0)
                     and near(box[5], z_top) and abs((v - v0) - slab_add) < 0.05):
                 print(f"  cheek slab ok (sketch sign {sign}) box={box} vol {v0}->{v}")
                 zsign = sign
@@ -160,29 +168,57 @@ def build_stand(session):
     gap = side_sketch(lambda: sketch_polygon(model, [(x, zsign * z) for x, z in gap_profile]))
     cut_step(gap, CHEEK_GAP, a_q * CHEEK_GAP / 1000, "cheek gap cut")
 
-    # 3) Ø11 x 0.8 bosses on the cheek inner faces: fill the gap with a Ø11 disc, then cut all but 0.8 per side
+    def add_step(sk2, depth, added, label):
+        before = volume_cm3(model)
+        check(extrude_mid(model, sk2, mm(depth)) is not None, f"{label} failed")
+        after = volume_cm3(model)
+        print(f"  {label}: vol {before}->{after} (expected +{added:.3f})")
+        check(abs((after - before) - added) < 0.05, f"{label} volume mismatch")
+
+    # 4) Ø11 x 0.8 bosses on the cheek inner faces: fill the gap with a Ø11 disc, then cut all but 0.8 per side
     boss_area = math.pi * (BOSS_D / 2) ** 2
     bsk = side_sketch(lambda: sketch_circle(model, *p(AXLE_X, AXLE_Z), mm(BOSS_D / 2)))
-    before = volume_cm3(model)
-    check(extrude_mid(model, bsk, mm(CHEEK_GAP)) is not None, "boss slab failed")
-    after = volume_cm3(model)
-    print(f"  boss slab: vol {before}->{after}")
-    check(abs((after - before) - boss_area * CHEEK_GAP / 1000) < 0.05, "boss slab volume mismatch")
+    add_step(bsk, CHEEK_GAP, boss_area * CHEEK_GAP / 1000, "boss slab")
     bcut = side_sketch(lambda: sketch_circle(model, *p(AXLE_X, AXLE_Z), mm(BOSS_D / 2)))
     cut_step(bcut, SHEAVE_W, boss_area * SHEAVE_W / 1000, "boss middle cut")
 
-    # 4) axle hole through cheeks + bosses, keeper-pin hole through the cheeks
+    # 5) printed keeper bar across the gap at 45° above the outgoing side (replaces the v1 M4 pin)
     kx = AXLE_X + KEEPER_R * math.cos(math.radians(KEEPER_ANGLE))
     kz = AXLE_Z + KEEPER_R * math.sin(math.radians(KEEPER_ANGLE))
-    hsk = side_sketch(lambda: (sketch_circle(model, *p(AXLE_X, AXLE_Z), mm(AXLE_D / 2)),
-                               sketch_circle(model, *p(kx, kz), mm(KEEPER_D / 2))))
-    removed = (math.pi * (AXLE_D / 2) ** 2 * (2 * CHEEK_T + 2 * BOSS_H)
-               + math.pi * (KEEPER_D / 2) ** 2 * 2 * CHEEK_T) / 1000
-    cut_step(hsk, outer + 10, removed, "axle + keeper holes")
+    ksk = side_sketch(lambda: sketch_circle(model, *p(kx, kz), mm(KEEPER_D / 2)))
+    add_step(ksk, CHEEK_GAP, math.pi * (KEEPER_D / 2) ** 2 * CHEEK_GAP / 1000, "keeper bar")
+
+    # 6) axle hole through cheeks + bosses
+    hsk = side_sketch(lambda: sketch_circle(model, *p(AXLE_X, AXLE_Z), mm(AXLE_D / 2)))
+    cut_step(hsk, outer + 10, math.pi * (AXLE_D / 2) ** 2 * (2 * CHEEK_T + 2 * BOSS_H) / 1000, "axle hole")
+
+    # 7) two horizontal M5 holes through the flange (Right Plane, YZ). Which sketch axis is model Z depends
+    #    on the version, so try the candidate layouts and keep the one that removes exactly the flange holes.
+    removed = 2 * math.pi * (RAIL_HOLE_D / 2) ** 2 * FLANGE_T / 1000
+    layouts = [[(s * RAIL_HOLE_Z, y) for y in (-RAIL_HOLE_Y, RAIL_HOLE_Y)] for s in (1, -1)]
+    layouts += [[(y, s * RAIL_HOLE_Z) for y in (-RAIL_HOLE_Y, RAIL_HOLE_Y)] for s in (1, -1)]
+    for pts in layouts:
+        with sketch(model, "Right Plane") as rsk:
+            for u, w in pts:
+                sketch_circle(model, mm(u), mm(w), mm(RAIL_HOLE_D / 2))
+        before = volume_cm3(model)
+        feat = cut_midplane(model, rsk, mm(2 * FLANGE_T + 10))
+        after = volume_cm3(model)
+        if feat is not None and abs((before - after) - removed) < 0.05:
+            print(f"  rail holes ok (layout {pts}): vol {before}->{after}")
+            break
+        print(f"  rail holes layout {pts} rejected: vol {before}->{after}")
+        if feat is not None:
+            model.EditUndo2(1)
+        model.ForceRebuild3(False)
+    else:
+        check(False, "rail holes failed")
 
     delete_orphan_sketches(model)
     box = body_box(model)
     print(f"  final box={box} vol={volume_cm3(model)} bodies={len(model.GetBodies2(0, True) or [])}")
+    check(near(box[0], 0) and near(box[3], CHEEK_PROFILE[1][0]) and near(box[1], -FLANGE_Y) and near(box[5], z_top),
+          "stand bounding box mismatch")
     check(len(model.GetBodies2(0, True) or []) == 1, "stand is not a single body")
     return model
 

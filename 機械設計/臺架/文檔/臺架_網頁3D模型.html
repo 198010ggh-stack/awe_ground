@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <style>
   /* Layout: full-height 3D viewport + right-hand instrument panel (stacks under the view on phones).
-     Palette: cool workshop greys, one accent = the orange Dyneema line. */
+     Palette: cool workshop greys, one accent = the orange Dyneema line. Same system as the v1 rig page. */
   :root {
     --bg: #eef1f4; --panel: #ffffff; --fg: #1b2229; --muted: #5d6873; --rule: #d6dce2;
     --accent: #cf5a26; --scene: #e8ecf0; --grid1: #c3cad2; --grid2: #dde2e8;
@@ -72,6 +72,8 @@
   th:first-child, td:first-child { text-align: left; }
   td { text-align: right; padding: 3px 0; border-top: 1px dashed var(--rule); }
   tr.cur td { color: var(--accent); }
+  .buy li { margin: 2px 0; }
+  .buy { margin: 0; padding-left: 18px; font-size: 13px; }
   .parts { list-style: none; padding: 0; margin: 0; }
   .parts li { display: flex; align-items: center; gap: 8px; padding: 3px 4px; border-radius: 4px; cursor: pointer; font-size: 13px; }
   .parts li:hover, .parts li.hi { background: color-mix(in srgb, var(--accent) 14%, transparent); }
@@ -102,17 +104,27 @@
 <div id="app">
   <div id="view">
     <div class="hint">拖動旋轉 · 右鍵平移 · 滾輪縮放 · 滑鼠停在零件上看說明</div>
-    <div id="info"><b>捲線器臺架</b><span class="muted">線從捲筒下方出來，經桌邊的滑輪轉向下，吊起槓鈴片。調電機電流，看重物上升或下降。</span></div>
+    <div id="info"><b>捲線器臺架 v2</b><span class="muted">滑輪座直接頂在捲線器靠桌邊那根型材上，滑輪架在桌邊上方，線往下吊一桶水。不用橫樑、角碼和 F 夾。</span></div>
   </div>
   <aside id="side">
     <header>
-      <h1>捲線器臺架</h1>
-      <div class="sub">桌邊轉向滑輪 + 重物 · 單位 mm · 依臺架設計文檔 2026-10-30</div>
+      <h1>捲線器臺架 v2</h1>
+      <div class="sub">滑輪座裝在捲線器上 · 單位 mm · 依臺架設計文檔 v2（2026-11-01）</div>
     </header>
 
     <section>
+      <h2>要買的</h2>
+      <ul class="buy">
+        <li>608ZZ 軸承 × 2</li>
+        <li>M8 × 50 外六角螺栓 + M8 尼龍螺母 + M8 平墊片 × 2</li>
+        <li>建議：XT60 防打火開關當急停</li>
+      </ul>
+      <div class="note">滑輪座用捲線器剩下的 2 顆 M5 × 16、墊片和錘頭 T 型螺母；重物用水桶裝水，行李秤稱重。</div>
+    </section>
+
+    <section>
       <h2>標定模擬（方法 2：重物升降）</h2>
-      <div class="seg" id="mass" role="group" aria-label="重物質量">
+      <div class="seg" id="mass" role="group" aria-label="水桶總重">
         <button id="m25" data-m="2.5">2.5 kg</button>
         <button id="m50" data-m="5">5 kg</button>
         <button id="m75" data-m="7.5">7.5 kg</button>
@@ -124,7 +136,7 @@
       <div class="pill" id="state">靜止</div>
       <div class="read">
         <div><span>電機拉力 k·I</span><span class="num" id="rF">0 N</span></div>
-        <div><span>重物重量</span><span class="num" id="rW">0 N</span></div>
+        <div><span>水桶重量</span><span class="num" id="rW">0 N</span></div>
         <div><span>線速</span><span class="num" id="rV">0.00 m/s</span></div>
         <div><span>放出的線</span><span class="num" id="rD">0 mm</span></div>
       </div>
@@ -134,7 +146,7 @@
     <section>
       <h2>預計讀數（按 k = 4.2 N/A；實際可能低到 3.6，以實測為準）</h2>
       <table>
-        <thead><tr><th>重物</th><th>拉力 N</th><th>開始上升 I_up</th><th>開始下降 I_down</th></tr></thead>
+        <thead><tr><th>水桶總重</th><th>拉力 N</th><th>開始上升 I_up</th><th>開始下降 I_down</th></tr></thead>
         <tbody id="cal"></tbody>
       </table>
       <div class="note">兩個電流取平均就是這個拉力對應的電流；差值的一半是摩擦。模擬裏摩擦按 0.4 A 算。</div>
@@ -160,13 +172,14 @@
       <h2>關鍵尺寸</h2>
       <table>
         <tbody>
-          <tr><td>捲筒軸心到桌邊</td><td class="num">250</td></tr>
-          <tr><td>線高（離桌面）</td><td class="num">59.5</td></tr>
-          <tr><td>滑輪軸心：伸出桌邊 / 離桌面</td><td class="num">30 / 39</td></tr>
+          <tr><td>捲筒軸心到桌邊</td><td class="num">85</td></tr>
+          <tr><td>型材外側面到桌邊（滑輪座底板長）</td><td class="num">35</td></tr>
+          <tr><td>滑輪軸心：離型材外側面 / 離桌面</td><td class="num">30 / 39</td></tr>
+          <tr><td>線往下的位置：離桌邊</td><td class="num">≈ 16</td></tr>
           <tr><td>滑輪外徑 / 槽底 / 寬</td><td class="num">Ø52 / Ø40 / 15</td></tr>
           <tr><td>側板間隙（滑輪 + 2 × 凸台 0.8）</td><td class="num">16.6</td></tr>
-          <tr><td>橫樑 2020（中心距 80）</td><td class="num">2 × 200</td></tr>
-          <tr><td>線心半徑：捲筒 / 滑輪</td><td class="num">45.5 / 20.7</td></tr>
+          <tr><td>行程（桌高 750，10 L 水桶）</td><td class="num">≈ 320</td></tr>
+          <tr><td>掀翻力矩 / 捲線器自重回正力矩（10 kg）</td><td class="num">1.5 / 3.7 N·m</td></tr>
         </tbody>
       </table>
     </section>
@@ -177,18 +190,19 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// ---------- 尺寸（mm）。世界座標：x 沿光軸，y 朝桌邊（出線方向），z 朝上，桌面 z = 0 ----------
+// ---------- 尺寸（mm）。世界座標：x 沿光軸，y 朝桌邊（出線方向），z 朝上，桌面 z = 0，捲筒軸心在 y = 0 ----------
 const H = 85, ZR = 20;            // 軸心離型材頂；型材頂離桌面
-const XL = 171;                   // 捲筒中間 = 線、滑輪座、兩根橫樑的中心
-const YE = 250;                   // 桌邊
-const AXLE = new THREE.Vector3(XL, YE + 30, ZR + 19);
+const XL = 171;                   // 捲筒中間 = 線、滑輪座的中心
+const Y_RAIL = 50;                // 近桌邊那根型材的外側面
+const YE = 85;                    // 桌邊（滑輪座底板前沿和它齊平）
+const AXLE = new THREE.Vector3(XL, Y_RAIL + 30, 39);
 const R_DRUM = 45.5, R_SHEAVE = 20.7;
-const LINE_Y = AXLE.y + R_SHEAVE;  // 往下走的那段線
-const FLOOR = -750, TABLE_T = 25;
+const LINE_Y = AXLE.y + R_SHEAVE;  // 往下走的那段線，離桌邊約 16
+const FLOOR = -750, TABLE_T = 25, PAD_T = 30;
 const K = 4.2, G = 9.81, FRIC_A = 0.4, DAMP = 60;   // N/A；摩擦折合電流；N/(m/s)
-const Z_TOP = -15;                // 線末端最高（泡沫緩衝碰到滑輪）
-const HANG = 200;                 // 線末端到掛桿底
-const PAD_T = 30;
+const Z_TOP = -30;                // 線末端最高（海綿碰到滑輪座側板底）
+const HANDLE = 90, BUCKET_H = 280, BUCKET_R0 = 110, BUCKET_R1 = 130;
+const HANG = HANDLE + BUCKET_H;   // 線末端到桶底
 const D_MAX = Z_TOP - (FLOOR + PAD_T + HANG);   // 行程
 
 const P = {
@@ -221,7 +235,8 @@ const fill = new THREE.DirectionalLight(0xffffff, 0.8); fill.position.set(-600, 
 const clipPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), XL);
 const clipMats = [];
 function mat(color, o = {}) {
-  const m = new THREE.MeshStandardMaterial({ color, metalness: o.metal ?? 0.1, roughness: o.rough ?? 0.6, side: THREE.DoubleSide });
+  const m = new THREE.MeshStandardMaterial({ color, metalness: o.metal ?? 0.1, roughness: o.rough ?? 0.6, side: THREE.DoubleSide,
+    transparent: !!o.opacity, opacity: o.opacity ?? 1, depthWrite: !o.opacity });
   if (o.clip) clipMats.push(m);
   return m;
 }
@@ -233,14 +248,14 @@ const M = {
   stand: mat(0x9d94e0, { rough: 0.7, clip: true }), sheave: mat(0x3fb28f, { rough: 0.6, clip: true }),
   bearing: mat(0xc7ccd2, { metal: 0.5, rough: 0.3, clip: true }), bolt: mat(0x8d949b, { metal: 0.5, rough: 0.35, clip: true }),
   wood: mat(0xb48a5e, { rough: 0.85 }), legs: mat(0x6c737b, { metal: 0.2, rough: 0.6 }),
-  iron: mat(0x33373c, { metal: 0.4, rough: 0.55 }), foam: mat(0x7fb3d9, { rough: 0.95 }),
-  clampRed: mat(0xc0392b, { rough: 0.5 }), block: mat(0xd8b98a, { rough: 0.9 }),
+  bucket: mat(0xe9ecef, { rough: 0.5 }), water: mat(0x4a90d9, { rough: 0.2, opacity: 0.7 }),
+  foam: mat(0x7fb3d9, { rough: 0.95 }), sponge: mat(0xf2d16b, { rough: 0.95 }),
+  book1: mat(0x8e3b46, { rough: 0.8 }), book2: mat(0x2f5d8a, { rough: 0.8 }),
   line: new THREE.MeshStandardMaterial({ color: 0xcf5a26, roughness: 0.8 }),
 };
 
 // ---------- 幾何工具 ----------
-// 局部擠出 → 世界：在 yz 平面畫形狀、沿 x 擠出
-const toYZ = new THREE.Matrix4().set(0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1);
+const toYZ = new THREE.Matrix4().set(0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1);   // 在 yz 平面畫、沿 x 擠出
 function circlePath(cx, cy, r) { const p = new THREE.Path(); p.absarc(cx, cy, r, 0, Math.PI * 2, true); return p; }
 function extrudeYZ(shape, x0, depth) {
   const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 48 });
@@ -278,9 +293,9 @@ function addPart(name, spec, tag, color, meshes, parent = scene) {
   return group;
 }
 
-// ---------- 捲線器（沿用捲線器網頁模型的尺寸；型材頂 z = 0，整體抬高 20 放到桌面上） ----------
+// ---------- 捲線器（和 v1 頁面相同；型材頂 z = 0，整體抬高 20 放到桌面上） ----------
 const winch = new THREE.Group(); winch.position.z = ZR; scene.add(winch);
-const rotor = new THREE.Group(); rotor.position.z = H; winch.add(rotor);   // 隨電機一起轉的零件，繞軸心轉
+const rotor = new THREE.Group(); rotor.position.z = H; winch.add(rotor);
 const onAxis = g => { g.translate(0, 0, -H); return g; };
 
 function upright(x0, footDir, holeFn) {
@@ -329,7 +344,7 @@ function disc(x0, drive) {
   for (const geo of [...plA, ...upright(P.plateBx, -1, kflHoles), ...upright(P.plateCx, +1, kflHoles)]) g.push([geo, M.pla]);
   g.push(...kfl(P.plateBx, -1), ...kfl(P.plateCx + P.plateT, +1));
   g.push([cylX(P.motorD - 6, -3, 3, 64), M.zinc]);
-  addPart('捲線器本體', '已裝好的直驅捲線器：兩根 400 mm 2020 型材、立板 A/B/C、兩個 KFL002。這裏只看它和臺架怎麼連；細節見捲線器網頁模型。', '已有', '#f0f0ea', g, winch);
+  addPart('捲線器本體', '已裝好的直驅捲線器，不用改。兩根型材和桌邊平行，近桌邊那根的外側面離桌邊 35 mm；滑輪座就頂在這個面上。', '已有', '#f0f0ea', g, winch);
 }
 {
   const g = [];
@@ -353,66 +368,51 @@ function disc(x0, drive) {
   addPart('捲筒和電機轉子', '直驅：電機外轉子、梅花聯軸器、光軸、法蘭、捲筒一起轉。放線時捲筒下緣朝桌邊轉。捲筒上只繞幾圈測試線，線心半徑 45.5。', '隨電機轉', '#f2b04a', g, rotor);
 }
 
-// ---------- 桌子和地面 ----------
+// ---------- 桌子、地面、壓重 ----------
 {
   const g = [[boxG(-320, 540, -460, YE, -TABLE_T, 0), M.wood]];
   for (const [x, y] of [[-290, -430], [510, -430], [-290, YE - 30], [510, YE - 30]]) g.push([boxG(x - 20, x + 20, y - 20, y + 20, FLOOR, -TABLE_T), M.legs]);
-  addPart('桌子', '桌高按 750 算。F 夾要夾的地方（離桌邊約 60 mm）下面不能有抽屜；掛重物的地方下面要空。', '已有', '#b48a5e', g);
+  addPart('桌子', '桌高按 750 算。只要求桌邊平直（沒有凸出的邊條），掛水桶的地方下面是空的；不用夾 F 夾。', '已有', '#b48a5e', g);
 }
 let grid;
 function makeGrid(c1, c2) {
   if (grid) scene.remove(grid);
   grid = new THREE.GridHelper(2400, 48, c1, c2); grid.rotation.x = Math.PI / 2; grid.position.set(XL, 0, FLOOR); scene.add(grid);
 }
+addPart('壓重（可選）', '兩本厚書壓在電機那頭的兩根型材上，放在電機下面的空當裏。按 10 kg 算不壓也翻不了（掀翻力矩約 1.5 N·m，捲線器自重回正約 3.7 N·m），壓書是防止碰到時滑動。', '家裏有', '#8e3b46',
+  [[boxG(-104, -18, -62, 58, ZR, ZR + 18), M.book1], [boxG(-100, -22, -58, 54, ZR + 18, ZR + 36), M.book2]]);
 
-// ---------- 橫樑和角碼 ----------
-{
-  const g = [];
-  for (const bx of [XL - 40, XL + 40]) {
-    g.push([boxG(bx - 10, bx + 10, 50, YE, 0, 20), M.rail]);
-    for (const s of [-1, 1]) {
-      g.push([boxG(Math.min(bx + s * 10, bx + s * 30), Math.max(bx + s * 10, bx + s * 30), 50, 53, 2, 18), M.zinc]);
-      g.push([boxG(Math.min(bx + s * 10, bx + s * 13), Math.max(bx + s * 10, bx + s * 13), 50, 70, 2, 18), M.zinc]);
-    }
-  }
-  addPart('2020 橫樑 ×2 + 角碼 ×4', '各長 200，垂直於桌邊，中心距 80。一頭用角碼接在近桌邊那根型材的外側面，另一頭和桌邊齊平。捲筒和滑輪連成一個框，線的水平拉力在框裏抵消。', '外購', '#b3b9c0', g);
-}
-
-// ---------- 滑輪座（局部座標 xs 朝桌外、ys 沿桌邊、zs 從橫樑頂往上） ----------
-const toWorldStand = new THREE.Matrix4().set(0, -1, 0, XL, 1, 0, 0, YE, 0, 0, 1, ZR, 0, 0, 0, 1);
+// ---------- 滑輪座 v2（局部座標：xs 從型材外側面朝桌外、ys 沿桌邊、zs 從桌面往上） ----------
+const toWorldStand = new THREE.Matrix4().set(0, -1, 0, XL, 1, 0, 0, Y_RAIL, 0, 0, 1, 0, 0, 0, 0, 1);
 const toStandFromXZ = (y0) => new THREE.Matrix4().set(1, 0, 0, 0, 0, 0, -1, y0, 0, 1, 0, 0, 0, 0, 0, 1);  // 在 xs-zs 平面畫、沿 -ys 擠出
 const standGeo = g => g.applyMatrix4(toWorldStand);
+const SA = { x: 30, z: 39 };                                       // 滑輪軸（局部）
+const KP = { x: SA.x + 29.3 * Math.SQRT1_2, z: SA.z + 29.3 * Math.SQRT1_2 };   // 擋線梁中心，表面離輪緣 0.8
 {
   const g = [];
-  const base = new THREE.Shape(); base.moveTo(-30, -50); base.lineTo(0, -50); base.lineTo(0, 50); base.lineTo(-30, 50); base.lineTo(-30, -50);
-  base.holes.push(circlePath(-15, -40, 2.75), circlePath(-15, 40, 2.75));
-  g.push([standGeo(new THREE.ExtrudeGeometry(base, { depth: 8, bevelEnabled: false, curveSegments: 24 })), M.stand]);
-  const prof = [[-30, 0], [58, 0], [58, 44], [52, 49], [40, 49], [-30, 16]];
+  g.push([standGeo(boxG(0, 8, -50, 50, 0, 20)), M.stand]);                     // 立邊：頂住型材外側面
+  for (const s of [-1, 1]) g.push([standGeo(boxG(8, YE - Y_RAIL, Math.min(s * 16.3, s * 34), Math.max(s * 16.3, s * 34), 0, 8)), M.stand]);
+  const prof = [[0, 0], [58, 0], [58, 60], [50, 69], [22, 69], [0, 36]];
   for (const y0 of [-8.3, 16.3]) {
     const s = new THREE.Shape(); s.moveTo(...prof[0]); prof.slice(1).forEach(p => s.lineTo(...p)); s.lineTo(...prof[0]);
-    s.holes.push(circlePath(30, 19, 4.2), circlePath(50.4, 39.4, 2.2));
+    s.holes.push(circlePath(SA.x, SA.z, 4.2));
     const cg = new THREE.ExtrudeGeometry(s, { depth: 8, bevelEnabled: false, curveSegments: 32 });
     cg.applyMatrix4(toStandFromXZ(y0)); g.push([standGeo(cg), M.stand]);
   }
-  for (const s of [-1, 1]) {
-    const b = new THREE.CylinderGeometry(5.5, 5.5, 0.8, 32); b.translate(30, s * 7.9, 19); g.push([standGeo(b), M.stand]);
-  }
-  addPart('滑輪座（打印）', '底板 30 × 100 × 8 橫跨兩根橫樑，2 顆 M5 × 16 擰進 T 型螺母。兩片 8 mm 側板間隙 16.6；內側 Ø11 × 0.8 凸台只頂軸承內圈，側縫比線細，線卡不進去。打印時底板朝下，不用支撐。', '3D 打印', '#9d94e0', g);
+  for (const s of [-1, 1]) { const b = new THREE.CylinderGeometry(5.5, 5.5, 0.8, 32); b.translate(SA.x, s * 7.9, SA.z); g.push([standGeo(b), M.stand]); }
+  const kb = new THREE.CylinderGeometry(2.5, 2.5, 16.6, 24); kb.translate(KP.x, 0, KP.z); g.push([standGeo(kb), M.stand]);
+  addPart('滑輪座 v2（打印）', '立邊頂住型材外側面，2 顆 M5 擰進側槽；兩側底板壓在桌面上，前沿和桌邊齊平。側板之間底下是空的，滑輪從下面裝進去。擋線梁是打印的（Ø5，表面離輪緣 0.8 mm），代替 M4 螺絲。打印時底板朝下。', '3D 打印', '#9d94e0', g);
 }
 {
   const g = [];
   const yAxis = (r, y0, y1, seg) => { const c = new THREE.CylinderGeometry(r, r, y1 - y0, seg); c.translate(0, (y0 + y1) / 2, 0); return c; };
   const at = (geo, xs, zs) => { geo.translate(xs, 0, zs); return standGeo(geo); };
-  g.push([at(yAxis(4, -23.2, 27, 24), 30, 19), M.bolt], [at(yAxis(7.5, -23.2, -17.9, 6), 30, 19), M.bolt],
-         [at(yAxis(8, -17.9, -16.3, 24), 30, 19), M.bolt], [at(yAxis(8, 16.3, 17.9, 24), 30, 19), M.bolt],
-         [at(yAxis(7.5, 17.9, 25.9, 6), 30, 19), M.bolt]);
-  g.push([at(yAxis(2, -19.9, 24, 16), 50.4, 39.4), M.bolt], [at(yAxis(3.5, -19.9, -17.1, 6), 50.4, 39.4), M.bolt],
-         [at(yAxis(4, 17.1, 22.1, 6), 50.4, 39.4), M.bolt]);
-  for (const ys of [-40, 40]) {
-    const w = new THREE.CylinderGeometry(7.5, 7.5, 2.2, 24); w.rotateX(Math.PI / 2); w.translate(-15, ys, 9.1); g.push([standGeo(w), M.bolt]);
-    const h = new THREE.CylinderGeometry(4.25, 4.25, 5, 24); h.rotateX(Math.PI / 2); h.translate(-15, ys, 12.7); g.push([standGeo(h), M.bolt]);
-  }
-  addPart('M8 滑輪軸 / M4 擋線銷 / M5 螺絲', 'M8 × 50 外六角 + 尼龍螺母當滑輪軸。M4 × 45 擋線銷在滑輪斜上方 45°，表面離輪緣 0.8 mm，線跳不出槽。底板 2 顆 M5 × 16 疊加大墊片 + 平墊片。', '外購', '#8d949b', g);
+  g.push([at(yAxis(4, -23.2, 27, 24), SA.x, SA.z), M.bolt], [at(yAxis(7.5, -23.2, -17.9, 6), SA.x, SA.z), M.bolt],
+         [at(yAxis(8, -17.9, -16.3, 24), SA.x, SA.z), M.bolt], [at(yAxis(8, 16.3, 17.9, 24), SA.x, SA.z), M.bolt],
+         [at(yAxis(7.5, 17.9, 25.9, 6), SA.x, SA.z), M.bolt]);
+  const xAxis = (r, x0, x1, ys, seg) => { const c = new THREE.CylinderGeometry(r, r, x1 - x0, seg); c.rotateZ(-Math.PI / 2); c.translate((x0 + x1) / 2, ys, 10); return standGeo(c); };
+  for (const ys of [-40, 40]) g.push([xAxis(7.5, 8, 9.2, ys, 24), M.bolt], [xAxis(5, 9.2, 10.2, ys, 24), M.bolt], [xAxis(4.25, 10.2, 15.2, ys, 24), M.bolt]);
+  addPart('M8 滑輪軸 / M5 螺絲', 'M8 × 50 外六角 + 尼龍螺母當滑輪軸（要買）。2 顆 M5 × 16 疊加大墊片 + 平墊片，水平擰進型材外側槽裏的錘頭 T 型螺母（用捲線器剩下的；錘頭 T 型螺母能從槽口直接放進去，捲線器不用拆）。', '要買 / 已有', '#8d949b', g);
 }
 
 // ---------- 滑輪（旋轉）+ 軸承 ----------
@@ -422,7 +422,7 @@ const sheave = new THREE.Group(); sheave.position.copy(AXLE); scene.add(sheave);
   const lg = new THREE.LatheGeometry(prof.map(([r, a]) => new THREE.Vector2(r, a)), 72);
   lg.translate(0, -7.5, 0); lg.rotateZ(-Math.PI / 2);
   const tick = new THREE.BoxGeometry(0.6, 3, 4); tick.translate(7.8, 0, 23);
-  addPart('滑輪（打印）', 'Ø52 × 15，90° V 槽，槽底 Ø40。兩側各壓一個 608ZZ，中間 1 mm 擋肩。平放打印，槽的斜面正好 45°，不用支撐。綠色上的黑色小塊用來看它轉。', '3D 打印', '#3fb28f',
+  addPart('滑輪（打印）', '和 v1 完全一樣：Ø52 × 15，90° V 槽，槽底 Ø40，兩側各壓一個 608ZZ。打過的能直接用。滑輪最低點離桌面 13 mm，下面是空的。', '3D 打印', '#3fb28f',
     [[lg, M.sheave], [tick, M.dark]], sheave);
 }
 {
@@ -432,7 +432,7 @@ const sheave = new THREE.Group(); sheave.position.copy(AXLE); scene.add(sheave);
     const rg = new THREE.ExtrudeGeometry(s, { depth: 7, bevelEnabled: false, curveSegments: 40 });
     rg.rotateY(Math.PI / 2); rg.translate(AXLE.x + x0, AXLE.y, AXLE.z); g.push([rg, M.bearing]);
   }
-  addPart('608ZZ 軸承 ×2', '8 × 22 × 7，壓進滑輪兩側的 Ø22.0 孔。勾上「剖開」看得到。', '外購', '#c7ccd2', g);
+  addPart('608ZZ 軸承 ×2', '8 × 22 × 7，壓進滑輪兩側的 Ø22.0 孔（要買）。勾上「剖開」看得到。', '要買', '#c7ccd2', g);
 }
 
 // ---------- 線 ----------
@@ -443,52 +443,37 @@ const lineParts = [];
     const a = i / 20 * Math.PI / 2; return new THREE.Vector3(XL, AXLE.y + R_SHEAVE * Math.sin(a), AXLE.z + R_SHEAVE * Math.cos(a));
   }));
   const vert = new THREE.CylinderGeometry(0.9, 0.9, 1, 10); vert.rotateX(Math.PI / 2); vert.translate(0, 0, -0.5);
-  const grp = addPart('Dyneema 測試線 1.5 m', 'Ø1.0。從捲筒下方出來，水平走到滑輪（離桌面 59.5），在滑輪上轉 90° 往下。只用一段 1.5 m，出事時捲筒能收回的線很少。', '耗材', '#cf5a26',
+  const grp = addPart('Dyneema 測試線 1.5 m', 'Ø1.0。從捲筒下方出來，水平走 80 mm 到滑輪（離桌面 59.5），轉 90° 在桌邊外約 16 mm 處往下，打結拴在水桶提手上。', '已有', '#cf5a26',
     [[horiz, M.line], [new THREE.TubeGeometry(arc, 24, 0.9, 10), M.line], [vert, M.line]]);
   lineParts.push(grp.children[2]);
   grp.children[2].position.set(XL, LINE_Y, AXLE.z);
 }
 
-// ---------- 重物掛桿 ----------
+// ---------- 水桶 ----------
 const hanger = new THREE.Group(); hanger.position.set(XL, LINE_Y, Z_TOP); scene.add(hanger);
-const plateGroup = new THREE.Group();
+const waterGroup = new THREE.Group();
 {
   const g = [];
-  g.push([cylZ(9, 0, 0, 2, 27), M.foam]);
-  const sh = new THREE.TorusGeometry(10, 2.2, 10, 36); sh.rotateX(Math.PI / 2); sh.scale(1, 1, 1.4); sh.translate(0, 0, -12); g.push([sh, M.bolt]);
-  const eye = new THREE.TorusGeometry(9, 3, 10, 36); eye.rotateY(Math.PI / 2); eye.translate(0, 0, -30); g.push([eye, M.steel]);
-  g.push([cylZ(9, 0, 0, -48, -38), M.steel], [cylZ(6, 0, 0, -HANG, -45), M.steel],
-         [cylZ(10, 0, 0, -HANG, -HANG + 10, 6), M.steel], [cylZ(18.5, 0, 0, -HANG + 10, -HANG + 13), M.steel]);
-  addPart('掛桿 + 槓鈴片', '線末端單套結 → D 形扣 → M12 吊環螺母 → M12 螺桿疊槓鈴片，底下大墊片 + 雙螺母。D 形扣上方套一小段泡沫，拉到頂先撞泡沫。槓鈴片直徑約 19 cm，有一半在桌面下方。', '外購', '#33373c', g, hanger);
-  parts[parts.length - 1].group.add(plateGroup);
+  g.push([cylZ(9, 0, 0, 2, 27), M.sponge]);
+  const handle = new THREE.CatmullRomCurve3(Array.from({ length: 25 }, (_, i) => {
+    const t = i / 24 * Math.PI; return new THREE.Vector3(BUCKET_R1 * Math.cos(t), 0, -HANDLE + HANDLE * Math.sin(t));
+  }));
+  g.push([new THREE.TubeGeometry(handle, 40, 2.5, 8), M.dark]);
+  const prof = [[0, 0], [BUCKET_R0, 0], [BUCKET_R1, BUCKET_H], [BUCKET_R1 - 3, BUCKET_H], [BUCKET_R0 - 3, 3], [0, 3]];
+  const bg = new THREE.LatheGeometry(prof.map(([r, h]) => new THREE.Vector2(r, h)), 64);
+  bg.rotateX(Math.PI / 2); bg.translate(0, 0, -HANG);
+  g.push([bg, M.bucket]);
+  addPart('水桶 + 水', '約 10 L 的水桶，加減水調重量，用行李秤連桶一起稱。線直接打結拴在提手上；提手上方的線套一小塊海綿，拉到頂時先撞海綿。代替槓鈴片、M12 掛桿和 D 形扣。', '家裏有', '#4a90d9', g, hanger);
+  parts[parts.length - 1].group.add(waterGroup);
 }
-function setPlates(m) {
-  plateGroup.clear();
-  const list = { 2.5: [2.5], 5: [2.5, 2.5], 7.5: [2.5, 2.5, 2.5], 10: [2.5, 2.5, 2.5, 1.25, 1.25] }[m];
-  let z = -HANG + 13;
-  for (const kg of list) {
-    const [r, t] = kg === 2.5 ? [95, 17] : [80, 13];
-    const s = new THREE.Shape(); s.absarc(0, 0, r, 0, Math.PI * 2, false); s.holes.push(circlePath(0, 0, 14));
-    const pg = new THREE.ExtrudeGeometry(s, { depth: t - 0.6, bevelEnabled: false, curveSegments: 64 }); pg.translate(0, 0, z);
-    const mesh = new THREE.Mesh(pg, M.iron); mesh.userData.part = '掛桿 + 槓鈴片'; plateGroup.add(mesh);
-    z += t;
-  }
+function setWater(m) {
+  waterGroup.clear();
+  const h = BUCKET_H * Math.max(0.05, (m - 0.5) / 12.7);           // 桶自重約 0.5 kg，桶容積約 12.7 L
+  const rTop = BUCKET_R0 - 3 + (BUCKET_R1 - BUCKET_R0) * h / BUCKET_H;
+  const wg = new THREE.CylinderGeometry(rTop, BUCKET_R0 - 3, h, 64); wg.rotateX(Math.PI / 2); wg.translate(0, 0, -HANG + 3 + h / 2);
+  const mesh = new THREE.Mesh(wg, M.water); mesh.userData.part = '水桶 + 水'; waterGroup.add(mesh);
 }
-
-// ---------- F 夾 + 泡沫墊 ----------
-{
-  const g = [];
-  for (const bx of [XL - 40, XL + 40]) {
-    g.push([boxG(bx - 15, bx + 15, 172, 208, 20, 42), M.block]);
-    g.push([boxG(bx - 7, bx + 7, 180, 272, 42, 50), M.dark]);
-    g.push([boxG(bx - 6, bx + 6, 262, 272, -60, 50), M.steel]);
-    g.push([boxG(bx - 15, bx + 15, 172, 208, -31, -TABLE_T), M.block]);
-    g.push([boxG(bx - 7, bx + 7, 180, 272, -45, -31), M.dark]);
-    g.push([cylZ(5, bx, 190, -95, -45, 20), M.steel], [cylZ(11, bx, 190, -125, -95, 24), M.clampRed]);
-  }
-  addPart('F 夾 ×2', '夾兩根橫樑離桌邊約 60 mm 處。上爪下面墊 ≥ 20 mm 厚木塊，夾臂從滑輪座底板和螺絲頭上方越過；下爪墊薄木片。喉深 ≥ 80。', '外購', '#c0392b', g);
-}
-addPart('泡沫墊', '鋪在地上接住重物。', '耗材', '#7fb3d9', [[boxG(XL - 170, XL + 170, LINE_Y - 170, LINE_Y + 170, FLOOR, FLOOR + PAD_T), M.foam]]);
+addPart('地墊', '舊靠墊或紙箱就行，接住落地的水桶。', '家裏有', '#7fb3d9', [[boxG(XL - 170, XL + 170, LINE_Y - 170, LINE_Y + 170, FLOOR, FLOOR + PAD_T), M.foam]]);
 
 // ---------- 剖切 ----------
 document.getElementById('clip').addEventListener('change', e => {
@@ -526,10 +511,10 @@ renderer.domElement.addEventListener('pointermove', e => {
 
 // ---------- 視角 ----------
 const views = {
-  iso: [[820, 1150, 480], [XL, 120, -110]],
-  side: [[1650, 160, -120], [XL, 160, -170]],
-  top: [[XL, 60, 1500], [XL, 60, 0]],
-  pulley: [[430, 560, 210], [XL, 275, 25]],
+  iso: [[1150, 1350, 560], [XL, 20, -190]],
+  side: [[1650, 20, -120], [XL, 20, -170]],
+  top: [[XL, 0, 1500], [XL, 0, 0]],
+  pulley: [[420, 330, 190], [XL, 70, 30]],
 };
 function setView(k) { const [c, t] = views[k]; camera.position.set(...c); controls.target.set(...t); controls.update(); }
 document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
@@ -553,11 +538,11 @@ let mass = 5, d = D_MAX / 2, v = 0, t = 0;
 if (matchMedia('(prefers-reduced-motion: reduce)').matches) demoEl.checked = false;
 function iEq() { return mass * G / K; }
 function setMass(m) {
-  mass = m; setPlates(m);
+  mass = m; setWater(m);
   document.querySelectorAll('#mass button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.m === m)));
   if (!demoEl.checked) curEl.value = iEq().toFixed(1);
   const w = m * G;
-  el('eqnote').textContent = `${m} kg：電流加到約 ${(w / K + FRIC_A).toFixed(1)} A 重物開始上升，減到約 ${(w / K - FRIC_A).toFixed(1)} A 開始下降，中間不動。`;
+  el('eqnote').textContent = `${m} kg：電流加到約 ${(w / K + FRIC_A).toFixed(1)} A 水桶開始上升，減到約 ${(w / K - FRIC_A).toFixed(1)} A 開始下降，中間不動。`;
   for (const tr of el('cal').children) tr.classList.toggle('cur', +tr.dataset.m === m);
 }
 for (const m of [2.5, 5, 7.5, 10]) {
@@ -578,10 +563,10 @@ function step(dt) {
   v += (vT - v) * Math.min(1, dt * 6);
   d = Math.max(0, Math.min(D_MAX, d - v * 1000 * dt));
   let label = '靜止', cls = '';
-  if (d <= 0 && vT > 0) { v = 0; label = '到頂：泡沫緩衝頂住滑輪'; }
-  else if (d >= D_MAX && vT < 0) { v = 0; label = '落地：重物躺在泡沫墊上'; }
-  else if (v > 0.003) { label = '收線：重物上升'; cls = 'up'; }
-  else if (v < -0.003) { label = '放線：重物下降'; cls = 'down'; }
+  if (d <= 0 && vT > 0) { v = 0; label = '到頂：海綿頂住滑輪座'; }
+  else if (d >= D_MAX && vT < 0) { v = 0; label = '落地：水桶落在地墊上'; }
+  else if (v > 0.003) { label = '收線：水桶上升'; cls = 'up'; }
+  else if (v < -0.003) { label = '放線：水桶下降'; cls = 'down'; }
   stateEl.textContent = label; stateEl.className = 'pill ' + cls;
   el('curv').textContent = I.toFixed(1) + ' A';
   el('rF').textContent = F.toFixed(1) + ' N';
@@ -601,7 +586,7 @@ function pose() {
 // ---------- 導出動圖用：rigFrame(秒, 鏡頭擺角°, 拉近倍數, 視角) 停掉實時動畫，按 8 秒一個來回畫出那一幀 ----------
 window.rigFrame = (sec, deg, zoom = 1, viewName = 'iso') => {
   renderer.setAnimationLoop(null);
-  d = D_MAX * (0.25 - 0.2 * Math.sin(2 * Math.PI * sec / 8));
+  d = D_MAX * (0.4 - 0.3 * Math.sin(2 * Math.PI * sec / 8));
   pose();
   const [c, tg] = views[viewName], a = deg * Math.PI / 180;
   const ox = (c[0] - tg[0]) * zoom, oy = (c[1] - tg[1]) * zoom;
