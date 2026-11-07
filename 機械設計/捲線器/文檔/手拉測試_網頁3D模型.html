@@ -1,0 +1,676 @@
+<title>捲線器手拉測試</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+  /* Layout: full-height 3D viewport + right-hand instrument panel (stacks under the view on phones).
+     Same token system as the rig pages; the three flight modes each get one colour. */
+  :root {
+    --bg: #eef1f4; --panel: #ffffff; --fg: #1b2229; --muted: #5d6873; --rule: #d6dce2;
+    --accent: #cf5a26; --scene: #e8ecf0; --grid1: #c3cad2; --grid2: #dde2e8;
+    --m-launch: #7a6fd6; --m-eight: #2e8b57; --m-land: #2f74c0; --mc: var(--m-launch);
+    --sans: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #11151a; --panel: #181e25; --fg: #e3e8ed; --muted: #93a0ac; --rule: #2b343e;
+      --accent: #f07a42; --scene: #141a20; --grid1: #36404b; --grid2: #222a32;
+      --m-launch: #a49bf0; --m-eight: #4cc38a; --m-land: #6aa8ee; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #11151a; --panel: #181e25; --fg: #e3e8ed; --muted: #93a0ac; --rule: #2b343e;
+    --accent: #f07a42; --scene: #141a20; --grid1: #36404b; --grid2: #222a32;
+    --m-launch: #a49bf0; --m-eight: #4cc38a; --m-land: #6aa8ee; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { background: var(--bg); color: var(--fg); font: 14px/1.5 var(--sans); }
+  #app { display: flex; height: 100%; }
+  #view { flex: 1; position: relative; min-width: 0; background: var(--scene); }
+  #view canvas { display: block; touch-action: none; }
+  #side {
+    width: 370px; flex: none; background: var(--panel); border-left: 1px solid var(--rule); overflow-y: auto;
+    padding-block: 16px 28px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  h1 { font-size: 19px; font-weight: 700; margin: 0; letter-spacing: 0.02em; text-wrap: balance; }
+  .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  h2 { font-size: 12px; font-weight: 500; margin: 0 0 8px; color: var(--muted); letter-spacing: 0.08em; }
+  section { min-width: 0; }
+  .modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .modes button {
+    font: inherit; font-size: 13px; line-height: 1.3; color: var(--fg); background: var(--bg);
+    border: 1px solid var(--rule); border-radius: 8px; padding: 8px 4px; cursor: pointer;
+  }
+  .modes button small { display: block; font-size: 11px; color: var(--muted); }
+  .modes button[aria-pressed="true"] { border-color: var(--mc); color: var(--mc); font-weight: 500; box-shadow: inset 0 0 0 1px var(--mc); }
+  .modes button[aria-pressed="true"] small { color: var(--mc); }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .btns button {
+    font: inherit; font-size: 13px; color: var(--fg); background: var(--bg); border: 1px solid var(--rule);
+    border-radius: 6px; padding: 5px 10px; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin-top: 10px; }
+  .now { margin-top: 12px; border-left: 3px solid var(--mc); padding: 2px 0 2px 10px; border-radius: 0; }
+  .now b { display: block; font-weight: 500; color: var(--mc); }
+  .now span { font-size: 13px; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .read { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; margin-top: 14px; }
+  .read div { display: flex; flex-direction: column; min-width: 0; }
+  .read span:first-child { font-size: 11px; color: var(--muted); }
+  .read .num { font-size: 17px; }
+  .note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  canvas.chart { width: 100%; height: 150px; display: block; }
+  canvas.kite { width: 100%; height: 150px; display: block; border: 1px solid var(--rule); border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th { text-align: left; font-weight: 500; color: var(--muted); font-size: 11px; padding: 0 4px 4px 0; vertical-align: bottom; }
+  td { padding: 4px 4px 4px 0; border-top: 1px dashed var(--rule); vertical-align: top; }
+  td:first-child { white-space: nowrap; }
+  tr.cur td:first-child { color: var(--mc); font-weight: 500; }
+  .parts { list-style: none; padding: 0; margin: 0; }
+  .parts li { display: flex; align-items: center; gap: 8px; padding: 3px 4px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+  .parts li:hover, .parts li.hi { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .sw { width: 11px; height: 11px; border-radius: 3px; flex: none; border: 1px solid color-mix(in srgb, var(--fg) 25%, transparent); }
+  .parts .tag { margin-left: auto; font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .safety { margin: 0; padding-left: 18px; font-size: 13px; }
+  .safety li { margin: 3px 0; }
+  #info {
+    position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); bottom: 12px;
+    max-width: min(460px, calc(100% - 24px)); background: var(--panel); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 10px 12px; font-size: 13px;
+  }
+  #info b { display: block; font-weight: 500; }
+  #info .muted { color: var(--muted); font-size: 12px; }
+  #badge {
+    position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); top: 10px; padding: 4px 12px; border-radius: 999px;
+    background: var(--panel); border: 1px solid var(--mc); color: var(--mc); font-size: 14px; font-weight: 500;
+  }
+  #hud {
+    position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); top: 46px; padding: 3px 10px; border-radius: 6px;
+    background: var(--panel); border: 1px solid var(--rule); color: var(--fg); font-size: 13px;
+  }
+  .hint { position: absolute; right: max(12px, env(safe-area-inset-right, 0px)); top: 12px; color: var(--muted); font-size: 12px; }
+  @media (max-width: 760px) {
+    #app { flex-direction: column; }
+    #view { flex: 0 0 55%; }
+    #side { width: 100%; flex: 1 1 auto; border-left: none; border-top: 1px solid var(--rule); }
+    .hint { display: none; }
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+
+<div id="app">
+  <div id="view">
+    <div id="badge">放線（起飛）</div>
+    <div id="hud" class="num"></div>
+    <div class="hint">拖動旋轉 · 右鍵平移 · 滾輪縮放 · 滑鼠停在東西上看說明</div>
+    <div id="info"><b>捲線器手拉測試</b><span class="muted">人代替風箏：起飛時輕鬆把線拉出去，8 字飛行時用力往後拉讓電機發電，降落時慢慢往前走讓電機收線。</span></div>
+  </div>
+  <aside id="side">
+    <header>
+      <h1>捲線器手拉測試</h1>
+      <div class="sub">放線 · 8 字飛行 · 收線 · 依地面手拉測試文檔 2026-11-06</div>
+    </header>
+
+    <section>
+      <h2>模式</h2>
+      <div class="modes" role="group" aria-label="飛行模式">
+        <button id="b-launch" data-mode="launch">放線<small>起飛</small></button>
+        <button id="b-eight" data-mode="eight">8 字飛行<small>發電</small></button>
+        <button id="b-land" data-mode="land">收線<small>降落</small></button>
+      </div>
+      <label class="check"><input id="auto" type="checkbox" checked> 自動循環（放線 → 8 字 → 收線 → 再放線）</label>
+      <div class="now"><b id="nowTitle"></b><span id="nowText"></span></div>
+      <div class="read">
+        <div><span>VESC 電流（手拉測試用）</span><span class="num" id="rI"></span></div>
+        <div><span>線拉力（傳感器 Fz）</span><span class="num" id="rT"></span></div>
+        <div><span>線速（+ 放出 / − 收回）</span><span class="num" id="rV"></span></div>
+        <div><span>放出的線</span><span class="num" id="rL"></span></div>
+        <div><span>捲筒轉速</span><span class="num" id="rN"></span></div>
+        <div><span id="rPk">功率</span><span class="num" id="rP"></span></div>
+      </div>
+      <div class="note" id="rBat"></div>
+    </section>
+
+    <section>
+      <h2>最近 30 秒</h2>
+      <canvas class="chart" id="chart" aria-label="線拉力和線速曲線"></canvas>
+      <div class="note">上：線拉力（N）；下：線速（m/s，零線以上是放出）。底色是當時的模式。</div>
+    </section>
+
+    <section>
+      <h2>真實飛行時的風箏</h2>
+      <canvas class="kite" id="kite" aria-label="真實風箏在三種模式下的軌跡示意"></canvas>
+      <div class="note" id="kiteNote"></div>
+    </section>
+
+    <section>
+      <h2>三種模式對照</h2>
+      <table>
+        <thead><tr><th>模式</th><th>原版 lisp</th><th>手拉測試</th><th>人和電機</th></tr></thead>
+        <tbody>
+          <tr id="t-launch"><td>放線（起飛）</td><td class="num">−0.3 A</td><td class="num">−0.3 A</td><td>人輕鬆後退；電機稍微幫忙放線</td></tr>
+          <tr id="t-eight"><td>8 字飛行</td><td class="num">20–23 A</td><td class="num">≤ 5 A</td><td>人用力往後拉、慢慢退；電機制動發電</td></tr>
+          <tr id="t-land"><td>收線（降落）</td><td class="num">1.7–8 A</td><td class="num">1.7–3 A</td><td>人慢慢往前走、保持線緊；電機收線</td></tr>
+        </tbody>
+      </table>
+      <div class="note">示意動畫：按線拉力係數 k ≈ 4 N/A、傳動摩擦約 0.4 A 估算，真實數值以手拉測試實測為準。</div>
+    </section>
+
+    <section>
+      <h2>安全要點</h2>
+      <ul class="safety">
+        <li>先設好電流上限（3–5 A）和最高轉速（線速約 1 m/s），急停放手邊。</li>
+        <li><b>聽到「零」才能鬆手</b>：帶着收線電流鬆手，手柄會飛回來。</li>
+        <li>線不纏手，戴手套和護目鏡；旁人不站在線的延長線上。</li>
+        <li>捲線器用綁帶綁在身後的重物上，電機下面壓約 10 kg。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>視圖</h2>
+      <div class="btns">
+        <button data-view="behind">從捲線器後面看</button>
+        <button data-view="side">側面全景</button>
+        <button data-view="winch">捲線器特寫</button>
+        <button data-view="hand">手柄和傳感器</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>場景裏的東西（點擊顯示/隱藏）</h2>
+      <ul class="parts" id="parts"></ul>
+    </section>
+  </aside>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---------- 尺寸（mm）。世界座標：x 沿光軸，y 朝拉線的人，z 朝上，地面 z = 0，捲筒軸心在 y = 0 ----------
+const H = 85, ZR = 20;            // 軸心離型材頂；型材頂離地
+const XL = 171;                   // 捲筒中間，人站在它的正前方
+const R_DRUM = 45.5;
+const DRUM_C = new THREE.Vector2(0, ZR + H);   // (y, z)
+const HANDLE_Z = 700, REACH = 430;             // 手柄高度（膝蓋附近）；手柄在身體前方的距離
+const L_MIN = 3000, L_MAX = 8500;
+const K = 4.0, FR = 1.6, V_BATT = 22.2;        // N/A；摩擦 N；6S 標稱電壓
+const MODES = {
+  launch: { name: '放線（起飛）', I: -0.3, v: 0.6, lean: 0, cls: '--m-launch',
+    text: '人輕鬆往後退，把線拉出來。電機給 −0.3 A，稍微幫忙放線，幾乎不出力。',
+    kite: '風箏垂直起飛，往上爬，線被輕鬆拉出去。' },
+  eight: { name: '8 字飛行（發電）', I: 5, v: 0.25, lean: 12, cls: '--m-eight',
+    text: '人用力往後拉、慢慢退。電機給 5 A 制動，線被拉出時電機在發電，電流倒灌回電池。',
+    kite: '風箏橫着風走 8 字，拉力大，把線往外拉，捲筒帶着電機發電。原版這時給 20–23 A。' },
+  land: { name: '收線（降落）', I: 2, v: -0.4, lean: -3, cls: '--m-land',
+    text: '人慢慢往前走，讓電機把線收回來，全程保持線是緊的。電機給 2 A 收線，耗電。',
+    kite: '風箏往回飛、降低，電機用小拉力把線收回來，準備下一個循環或降落。' },
+};
+const AUTO_NEXT = { launch: ['eight', L => L >= 4600], eight: ['land', L => L >= 7800], land: ['launch', L => L <= 3200] };
+
+// ---------- 場景 ----------
+const view = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+view.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, 5, 60000);
+camera.up.set(0, 0, 1);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.5));
+const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(2000, 3000, 5000); scene.add(sun);
+const fill = new THREE.DirectionalLight(0xffffff, 0.8); fill.position.set(-3000, -2000, 1500); scene.add(fill);
+
+function mat(color, o = {}) {
+  return new THREE.MeshStandardMaterial({ color, metalness: o.metal ?? 0.1, roughness: o.rough ?? 0.6, side: THREE.DoubleSide,
+    transparent: !!o.opacity, opacity: o.opacity ?? 1, depthWrite: !o.opacity });
+}
+const M = {
+  pla: mat(0xf0f0ea, { rough: 0.75 }), disc: mat(0xf2b04a, { rough: 0.7 }),
+  alu: mat(0xc9ced4, { metal: 0.35, rough: 0.4 }), steel: mat(0xd5d9de, { metal: 0.4, rough: 0.3 }),
+  dark: mat(0x2a2d31, { metal: 0.5, rough: 0.45 }), zinc: mat(0x9aa1a8, { metal: 0.3, rough: 0.45 }),
+  spider: mat(0xd2352c, { rough: 0.8 }), rail: mat(0xb3b9c0, { metal: 0.3, rough: 0.5 }),
+  book1: mat(0x8e3b46, { rough: 0.8 }), book2: mat(0x2f5d8a, { rough: 0.8 }), strap: mat(0x2b2f36, { rough: 0.9 }),
+  post: mat(0x6c737b, { metal: 0.2, rough: 0.6 }), wood: mat(0xb48a5e, { rough: 0.85 }),
+  skin: mat(0xe0b896, { rough: 0.8 }), shirt: mat(0x4f6d8f, { rough: 0.85 }), pants: mat(0x3a3f47, { rough: 0.9 }),
+  glove: mat(0xd9c24a, { rough: 0.9 }), sensor: mat(0xb9bec4, { metal: 0.5, rough: 0.35 }), plate: mat(0x9d94e0, { rough: 0.7 }),
+  zone: mat(0xcf5a26, { rough: 1, opacity: 0.07 }),
+  line: new THREE.MeshStandardMaterial({ color: 0xcf5a26, roughness: 0.8 }),
+};
+
+// ---------- 幾何工具 ----------
+const toYZ = new THREE.Matrix4().set(0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1);
+function circlePath(cx, cy, r) { const p = new THREE.Path(); p.absarc(cx, cy, r, 0, Math.PI * 2, true); return p; }
+function extrudeYZ(shape, x0, depth) {
+  const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 48 });
+  g.applyMatrix4(toYZ); g.translate(x0, 0, 0); return g;
+}
+function cylX(d, x0, len, seg = 48) {
+  const g = new THREE.CylinderGeometry(d / 2, d / 2, len, seg); g.rotateZ(-Math.PI / 2); g.translate(x0 + len / 2, 0, H); return g;
+}
+function ringX(od, id, x0, len) {
+  const s = new THREE.Shape(); s.absarc(0, H, od / 2, 0, Math.PI * 2, false); s.holes.push(circlePath(0, H, id / 2));
+  return extrudeYZ(s, x0, len);
+}
+function boxG(x0, x1, y0, y1, z0, z1) {
+  const g = new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0); g.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); return g;
+}
+function hull(pts) {
+  pts = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const p of pts) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (const p of pts.reverse()) { while (up.length >= 2 && cross(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+}
+// 把一根沿 y 軸、長 1 的物體擺到 a → b
+const Y_UP = new THREE.Vector3(0, 1, 0);
+function placeBetween(obj, a, b) {
+  const d = new THREE.Vector3().subVectors(b, a);
+  obj.position.copy(a).addScaledVector(d, 0.5);
+  obj.quaternion.setFromUnitVectors(Y_UP, d.clone().normalize());
+  obj.scale.set(1, d.length(), 1);
+}
+
+// ---------- 零件註冊 ----------
+const parts = [];
+function addPart(name, spec, tag, color, meshes, parent = scene) {
+  const group = new THREE.Group();
+  for (const [geo, m] of meshes) { const mesh = new THREE.Mesh(geo, m); mesh.userData.part = name; group.add(mesh); }
+  parent.add(group);
+  parts.push({ name, spec, tag, color, group });
+  return group;
+}
+function tagMeshes(group, name) { group.traverse(o => { if (o.isMesh) o.userData.part = name; }); }
+
+// ---------- 捲線器（和臺架頁面相同的模型；型材直接放在地上） ----------
+const P = {
+  plateT: 10, plateW: 120, plateH: 125, footL: 35, footT: 8, gussetX: 30, gussetZ: 55, gussetT: 8, railY: 40,
+  motorD: 79, motorL: 100, shaftD: 12, shaftL: 40, bossD: 40,
+  coupD: 40, coupL: 66, coupX0: 14, spoolShaftD: 15, spoolShaftX0: 56, spoolShaftL: 200,
+  plateAx: 0, plateBx: 100, plateCx: 226.5,
+  kflSpacing: 53, kflHole: 7, kflT: 6.5, kflW: 42, kflBossD: 34, kflBossL: 13,
+  flangeHubD: 35, flangeHubL: 20.4, flangeX0: 120.6,
+  discD: 140, discT: 8, rodD: 5, tubeOD: 90, tubeID: 84, tubeL: 68, groove: 4,
+  railX0: -110, railL: 400,
+};
+const discAx = 133, discBx = discAx + P.discT + (P.tubeL - 2 * P.groove), tubeX0 = discAx + P.discT - P.groove;
+const winch = new THREE.Group(); winch.position.z = ZR; scene.add(winch);
+const rotor = new THREE.Group(); rotor.position.z = H; winch.add(rotor);
+const onAxis = g => { g.translate(0, 0, -H); return g; };
+function upright(x0, footDir, holeFn) {
+  const s = new THREE.Shape(), w = P.plateW / 2;
+  s.moveTo(-w, 0); s.lineTo(w, 0); s.lineTo(w, P.plateH - 12); s.quadraticCurveTo(w, P.plateH, w - 12, P.plateH);
+  s.lineTo(-w + 12, P.plateH); s.quadraticCurveTo(-w, P.plateH, -w, P.plateH - 12); s.lineTo(-w, 0);
+  holeFn(s);
+  const geos = [extrudeYZ(s, x0, P.plateT)];
+  const fx0 = footDir > 0 ? x0 + P.plateT : x0 - P.footL;
+  geos.push(boxG(fx0, fx0 + P.footL, -w, w, 0, P.footT));
+  for (const y of [-28, 28]) {
+    const t = new THREE.Shape(), xb = footDir > 0 ? x0 + P.plateT : x0;
+    t.moveTo(xb, P.footT); t.lineTo(xb + footDir * P.gussetX, P.footT); t.lineTo(xb, P.footT + P.gussetZ); t.lineTo(xb, P.footT);
+    const tg = new THREE.ExtrudeGeometry(t, { depth: P.gussetT, bevelEnabled: false });
+    tg.applyMatrix4(new THREE.Matrix4().set(1, 0, 0, 0, 0, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1));
+    tg.translate(0, y + P.gussetT / 2, 0); geos.push(tg);
+  }
+  return geos;
+}
+function kfl(xFlange, dir) {
+  const pts = [];
+  for (let i = 0; i < 48; i++) { const a = i / 48 * Math.PI * 2; pts.push([Math.cos(a) * P.kflW / 2, H + Math.sin(a) * P.kflW / 2]); }
+  for (const zc of [H - P.kflSpacing / 2, H + P.kflSpacing / 2])
+    for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2; pts.push([Math.cos(a) * 7, zc + Math.sin(a) * 7]); }
+  const hp = hull(pts);
+  const s = new THREE.Shape(); s.moveTo(hp[0][0], hp[0][1]); hp.slice(1).forEach(p => s.lineTo(p[0], p[1]));
+  s.holes.push(circlePath(0, H - P.kflSpacing / 2, P.kflHole / 2), circlePath(0, H + P.kflSpacing / 2, P.kflHole / 2), circlePath(0, H, P.kflBossD / 2 - 1));
+  const fx0 = dir > 0 ? xFlange : xFlange - P.kflT, bossX0 = dir > 0 ? xFlange : xFlange - P.kflBossL;
+  return [[extrudeYZ(s, fx0, P.kflT), M.zinc], [ringX(P.kflBossD, P.spoolShaftD + 4, bossX0, P.kflBossL), M.zinc]];
+}
+function disc(x0, drive) {
+  const s = new THREE.Shape(); s.absarc(0, H, P.discD / 2, 0, Math.PI * 2, false);
+  s.holes.push(circlePath(0, H, (drive ? 35.4 : 15.2) / 2));
+  for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + i * Math.PI / 2; s.holes.push(circlePath(Math.cos(a) * 35, H + Math.sin(a) * 35, 2.75)); }
+  s.holes.push(circlePath(0, H + 48, 1.5));
+  return extrudeYZ(s, x0, P.discT);
+}
+{
+  const g = [];
+  for (const y of [-P.railY, P.railY]) g.push([boxG(P.railX0, P.railX0 + P.railL, y - 10, y + 10, -20, 0), M.rail]);
+  const plA = upright(P.plateAx, +1, s => {
+    s.holes.push(circlePath(0, H, P.bossD / 2));
+    for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + i * Math.PI / 2; s.holes.push(circlePath(Math.cos(a) * 28, H + Math.sin(a) * 28, 2.75)); }
+  });
+  const kflHoles = s => { s.holes.push(circlePath(0, H, 18), circlePath(0, H - 26.5, 3.25), circlePath(0, H + 26.5, 3.25)); };
+  for (const geo of [...plA, ...upright(P.plateBx, -1, kflHoles), ...upright(P.plateCx, +1, kflHoles)]) g.push([geo, M.pla]);
+  g.push(...kfl(P.plateBx, -1), ...kfl(P.plateCx + P.plateT, +1));
+  g.push([cylX(P.motorD - 6, -3, 3, 64), M.zinc]);
+  addPart('捲線器', '直驅捲線器直接放在地上，光軸垂直於拉線方向。線從捲筒下方出來，離地 59.5 mm，比從上方出來掀翻力矩小一半多。', '已有', '#f0f0ea', g, winch);
+}
+{
+  const g = [];
+  g.push([onAxis(cylX(P.motorD, -P.motorL, P.motorL - 3, 64)), M.dark]);
+  for (let i = 0; i < 12; i++) {
+    const a = i / 12 * Math.PI * 2, bb = boxG(-P.motorL + 8, -10, -3, 3, P.motorD / 2 - 1.5, P.motorD / 2 + 0.6);
+    bb.applyMatrix4(new THREE.Matrix4().makeRotationX(a)); g.push([bb, M.zinc]);
+  }
+  g.push([onAxis(cylX(P.shaftD, 0, P.shaftL)), M.steel]);
+  const hubL = (P.coupL - 16) / 2;
+  g.push([onAxis(cylX(P.coupD, P.coupX0, hubL)), M.alu], [onAxis(cylX(P.coupD - 6, P.coupX0 + hubL, 16)), M.spider], [onAxis(cylX(P.coupD, P.coupX0 + hubL + 16, hubL)), M.alu]);
+  g.push([onAxis(cylX(P.spoolShaftD, P.spoolShaftX0, P.spoolShaftL)), M.steel]);
+  g.push([onAxis(ringX(P.flangeHubD, P.spoolShaftD, P.flangeX0, P.flangeHubL)), M.steel]);
+  g.push([onAxis(disc(discAx, true)), M.disc], [onAxis(disc(discBx, false)), M.disc]);
+  g.push([onAxis(ringX(P.tubeOD, P.tubeID, tubeX0, P.tubeL)), M.alu]);
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI / 4 + i * Math.PI / 2, y = Math.cos(a) * 35, z = Math.sin(a) * 35;
+    const r = onAxis(cylX(P.rodD, discAx - 9.5, discBx + P.discT + 19 - discAx, 16)); r.translate(0, y, z); g.push([r, M.steel]);
+  }
+  g.push([onAxis(ringX(93, 90, XL - 6, 12)), M.line]);
+  addPart('捲筒和電機轉子', '直驅：電機外轉子、聯軸器、光軸、捲筒一起轉。放線時捲筒下緣朝人轉；收線時反過來。', '隨電機轉', '#f2b04a', g, rotor);
+}
+
+// ---------- 固定：綁帶 + 壓重 ----------
+const POST = new THREE.Vector3(XL, -700, 0);
+{
+  const g = [[boxG(POST.x - 25, POST.x + 25, POST.y - 25, POST.y + 25, 0, 750), M.post]];
+  g.push([boxG(-104, -18, -62, 58, ZR, ZR + 18), M.book1], [boxG(-100, -22, -58, 54, ZR + 18, ZR + 36), M.book2]);
+  const strap = new THREE.BoxGeometry(25, 1, 2);
+  const mesh = new THREE.Mesh(strap, M.strap);
+  placeBetween(mesh, new THREE.Vector3(XL, -50, 10), new THREE.Vector3(POST.x, POST.y + 25, 90));
+  const grp = addPart('固定：綁帶 + 壓重', '綁帶把型材後端綁在身後的重物上（這裏畫成工作臺的腿），方向和拉線相反，防止被拖動。電機下面的型材上壓約 10 kg（書或一桶水），防止往前掀：25 A 時線拉力約 100 N，掀翻力矩約 6 N·m，捲線器自重只抵 2.2 N·m。', '必須做', '#8e3b46', g);
+  mesh.userData.part = '固定：綁帶 + 壓重'; grp.add(mesh);
+}
+addPart('清空的通道', '捲線器前方 10 m 長、1 m 寬的通道裏不能有人和雜物，旁人不站在線的延長線上。', '場地', '#cf5a26',
+  [[boxG(XL - 500, XL + 500, 200, 10000, 0, 1), M.zone]]);
+let grid;
+function makeGrid(c1, c2) {
+  if (grid) scene.remove(grid);
+  grid = new THREE.GridHelper(14000, 56, c1, c2); grid.rotation.x = Math.PI / 2; grid.position.set(XL, 4000, -1); scene.add(grid);
+}
+
+// ---------- 拉線的人（腳在原點，面朝 −y，手柄在身前） ----------
+const person = new THREE.Group(); scene.add(person);
+const body = new THREE.Group(); person.add(body);        // 傾斜繞腳跟
+const legs = [];
+{
+  const legG = new THREE.CylinderGeometry(62, 55, 850, 16); legG.rotateX(Math.PI / 2); legG.translate(0, 0, -425);
+  for (const s of [-1, 1]) {
+    const hip = new THREE.Group(); hip.position.set(s * 105, 0, 850); body.add(hip);
+    hip.add(new THREE.Mesh(legG, M.pants));
+    const shoe = new THREE.Mesh(new THREE.BoxGeometry(110, 250, 70), M.dark); shoe.position.set(0, -50, -815); hip.add(shoe);
+    legs.push(hip);
+  }
+  const torso = new THREE.Mesh(boxG(-185, 185, -110, 110, 850, 1450), M.shirt); body.add(torso);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(110, 24, 16), M.skin); head.position.set(0, -10, 1590); body.add(head);
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 320, 16), M.wood); handle.rotation.z = Math.PI / 2;
+  handle.position.set(0, -REACH, HANDLE_Z); body.add(handle);
+  for (const s of [-1, 1]) {
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(40, 36, 1, 12), M.shirt);
+    placeBetween(arm, new THREE.Vector3(s * 205, -20, 1400), new THREE.Vector3(s * 75, -REACH, HANDLE_Z + 10));
+    body.add(arm);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(45, 12, 10), M.glove); hand.position.set(s * 75, -REACH, HANDLE_Z); body.add(hand);
+  }
+  person.userData.handle = handle;
+  tagMeshes(person, '拉線的人');
+  parts.push({ name: '拉線的人', spec: '代替風箏。站在捲筒中間的正前方 3 m 以外，手放低（先在膝蓋高度），戴手套和護目鏡。線末端拴一根木棍當手柄，線不纏手。只按操作員的口令動作，聽到「零」才鬆手。', tag: '人', color: '#4f6d8f', group: person });
+}
+
+// ---------- 線、傳感器 ----------
+const lineMesh = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, 1, 8), M.line);
+const linkMesh = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 1, 8), M.dark);
+{
+  const grp = new THREE.Group(); grp.add(lineMesh); scene.add(grp); tagMeshes(grp, 'Dyneema 線');
+  parts.push({ name: 'Dyneema 線', spec: 'Ø1.0，只放出 5–10 m，捲筒上至少留 3 圈並打結。畫粗了一點，方便看。', tag: '已有', color: '#cf5a26', group: grp });
+}
+const sensor = new THREE.Group(); scene.add(sensor);
+{
+  const body3 = new THREE.CylinderGeometry(28, 28, 22.5, 32);
+  sensor.add(new THREE.Mesh(body3, M.sensor));
+  const up = new THREE.Mesh(new THREE.CylinderGeometry(28, 28, 6, 32), M.plate); up.position.y = -14.25; sensor.add(up);
+  const dn = new THREE.Mesh(new THREE.CylinderGeometry(28, 28, 8, 32), M.plate); dn.position.y = 15.25; sensor.add(dn);
+  const e1 = new THREE.Mesh(new THREE.BoxGeometry(8, 22, 20), M.plate); e1.position.y = -28; sensor.add(e1);
+  const e2 = new THREE.Mesh(new THREE.BoxGeometry(8, 22, 20), M.plate); e2.position.y = 30; sensor.add(e2);
+  scene.add(linkMesh);
+  tagMeshes(sensor, '六維力傳感器 + 吊板'); linkMesh.userData.part = '六維力傳感器 + 吊板';
+  const g2 = new THREE.Group(); parts.push({ name: '六維力傳感器 + 吊板', spec: 'HKVL-56C 串在線和手柄之間：線 → 上吊板 → 傳感器 → 下吊板 → S 鉤 → 手柄。Fz 就是線拉力（量程 300 N）。線纜在手柄上用紮帶固定一段、留鬆弛，電腦和 24 V 電源放在拉線的人身邊。', tag: '可選', color: '#9d94e0', group: g2, extra: [sensor, linkMesh] });
+}
+
+// ---------- 零件列表 + 懸停 ----------
+const list = document.getElementById('parts'), info = document.getElementById('info');
+function showInfo(p) {
+  info.innerHTML = `<b>${p.name}</b><span class="muted">${p.tag}</span><div>${p.spec}</div>`;
+  for (const li of list.children) li.classList.toggle('hi', li.dataset.name === p.name);
+}
+function setVisible(p, v) { p.group.visible = v; (p.extra || []).forEach(o => { o.visible = v; }); }
+for (const p of parts) {
+  const li = document.createElement('li'); li.dataset.name = p.name;
+  li.innerHTML = `<input type="checkbox" checked aria-label="顯示 ${p.name}"><span class="sw" style="background:${p.color}"></span><span>${p.name}</span><span class="tag">${p.tag}</span>`;
+  const cb = li.querySelector('input');
+  cb.addEventListener('click', e => e.stopPropagation());
+  cb.addEventListener('change', () => setVisible(p, cb.checked));
+  li.addEventListener('click', () => { cb.checked = !cb.checked; setVisible(p, cb.checked); showInfo(p); });
+  li.addEventListener('mouseenter', () => showInfo(p));
+  list.appendChild(li);
+}
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+let hovered = null;
+renderer.domElement.addEventListener('pointermove', e => {
+  const r = renderer.domElement.getBoundingClientRect();
+  mouse.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const objs = []; scene.traverseVisible(o => { if (o.isMesh && o.userData.part) objs.push(o); });
+  const name = ray.intersectObjects(objs, false).find(h => h.object.material.opacity > 0.5)?.object.userData.part;
+  if (name && name !== hovered) { hovered = name; showInfo(parts.find(p => p.name === name)); }
+});
+
+// ---------- 視角 ----------
+const views = {
+  behind: [[1200, -4500, 2400], [XL, 2400, 450]],
+  side: [[15500, 4300, 3600], [XL, 4300, 300]],
+  winch: [[1000, -750, 650], [90, 150, 90]],
+  hand: [[1600, 0, 1300], [XL, 0, 600]],      // 跟着手柄走，y 在 render 時加上
+  near: [[3500, -1500, 1500], [XL, 1800, 500]], // 導出動圖用：側前方，捲線器和 3–5.5 m 處的人都在畫面裏
+};
+let follow = null;
+function setView(k) {
+  const [c, t] = views[k];
+  follow = k === 'hand' ? k : null;
+  const dy = follow ? handleWorld().y : 0;
+  camera.position.set(c[0], c[1] + dy, c[2]); controls.target.set(t[0], t[1] + dy, t[2]); controls.update();
+}
+document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+
+// ---------- 主題 ----------
+let colors = {};
+function applyTheme() {
+  const cs = getComputedStyle(document.documentElement), v = n => cs.getPropertyValue(n).trim();
+  colors = { fg: v('--fg'), muted: v('--muted'), rule: v('--rule'), accent: v('--accent'), panel: v('--panel'),
+    launch: v('--m-launch'), eight: v('--m-eight'), land: v('--m-land'), scene: v('--scene') };
+  scene.background = new THREE.Color(colors.scene);
+  makeGrid(new THREE.Color(v('--grid1')), new THREE.Color(v('--grid2')));
+  M.line.color.set(colors.accent);
+  M.zone.color.set(colors.accent);
+  setModeUI();
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+// ---------- 模擬 ----------
+const autoEl = document.getElementById('auto');
+const el = id => document.getElementById(id);
+let mode = 'launch', L = L_MIN, v = 0, phase = 0, t = 0, hist = [], kiteTrail = [];
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (reduced) autoEl.checked = false;
+function setMode(m) { mode = m; setModeUI(); }
+function setModeUI() {
+  const md = MODES[mode], c = colors[mode] || '';
+  document.documentElement.style.setProperty('--mc', `var(${md.cls})`);
+  document.querySelectorAll('.modes button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+  ['launch', 'eight', 'land'].forEach(k => el('t-' + k).classList.toggle('cur', k === mode));
+  el('badge').textContent = md.name;
+  el('nowTitle').textContent = md.name;
+  el('nowText').textContent = md.text;
+  el('kiteNote').textContent = md.kite;
+}
+document.querySelectorAll('.modes button').forEach(b => b.addEventListener('click', () => { autoEl.checked = false; setMode(b.dataset.mode); }));
+
+function handleWorld() { return person.userData.handle.getWorldPosition(new THREE.Vector3()); }
+function tangentPoint(hand) {
+  // 線從捲筒下方繞出：方向角 φ = α + asin(R/d)，切點 = C + R(sin φ, −cos φ)
+  const dy = hand.y - DRUM_C.x, dz = hand.z - DRUM_C.y, d = Math.hypot(dy, dz);
+  const phi = Math.atan2(dz, dy) + Math.asin(R_DRUM / d);
+  return new THREE.Vector3(XL, DRUM_C.x + R_DRUM * Math.sin(phi), DRUM_C.y - R_DRUM * Math.cos(phi));
+}
+
+function step(dt) {
+  t += dt;
+  const md = MODES[mode];
+  if (autoEl.checked) { const [next, done] = AUTO_NEXT[mode]; if (done(L)) setMode(next); }
+  const atEnd = (md.v > 0 && L >= L_MAX) || (md.v < 0 && L <= L_MIN);
+  const vT = atEnd ? 0 : MODES[mode].v;
+  v += (vT - v) * Math.min(1, dt * 2.5);
+  L = Math.max(L_MIN, Math.min(L_MAX, L + v * 1000 * dt));
+  phase += Math.abs(v) * dt / 1.1 * Math.PI * 2;
+  body.rotation.x += (-MODES[mode].lean * Math.PI / 180 - body.rotation.x) * Math.min(1, dt * 3);
+  const T = apply(atEnd);
+  hist.push([t, T, v, mode]);
+  while (hist.length && hist[0][0] < t - 30) hist.shift();
+}
+
+// 按當前的 mode、L、v、phase 擺好人、線、捲筒，更新讀數；返回線拉力
+function apply(atEnd) {
+  const I = MODES[mode].I;
+  const moving = Math.abs(v) > 0.02;
+  const T = Math.max(0, K * I + (moving ? Math.sign(v) * FR : 0));
+  const Pm = T * v;                                            // 進入捲筒的機械功率，正 = 發電
+  const Pe = Pm > 0 ? Pm * 0.8 : Pm / 0.8;
+  // 人：位置、走路
+  const swing = moving ? 0.38 * Math.sin(phase) : 0;
+  legs[0].rotation.x = swing; legs[1].rotation.x = -swing;
+  person.position.set(XL, L + REACH, 0);
+  person.updateMatrixWorld(true);
+  // 線和傳感器
+  const hand = handleWorld();
+  const tp = tangentPoint(hand);
+  const dir = new THREE.Vector3().subVectors(tp, hand).normalize();
+  const sBottom = hand.clone().addScaledVector(dir, 60), sCenter = hand.clone().addScaledVector(dir, 110), sTop = hand.clone().addScaledVector(dir, 155);
+  const withSensor = sensor.visible;
+  placeBetween(lineMesh, withSensor ? sTop : hand, tp);
+  sensor.position.copy(sCenter); sensor.quaternion.setFromUnitVectors(Y_UP, dir.clone().negate());
+  placeBetween(linkMesh, hand, sBottom);
+  rotor.rotation.x = (L - L_MIN) / R_DRUM;
+  // 讀數
+  el('rI').textContent = (I > 0 ? '+' : '') + I.toFixed(1) + ' A';
+  el('rT').textContent = T.toFixed(1) + ' N';
+  el('rV').textContent = (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2) + ' m/s';
+  el('rL').textContent = (L / 1000).toFixed(2) + ' m';
+  el('rN').textContent = Math.round(Math.abs(v) / (2 * Math.PI * R_DRUM / 1000) * 60) + ' rpm';
+  if (Pm > 0.3) { el('rPk').textContent = '發電（捲筒 → 電池）'; el('rP').textContent = Pe.toFixed(1) + ' W'; el('rBat').textContent = `電池充電約 ${(Pe / V_BATT).toFixed(2)} A。真實風箏 23 A、2 m/s 時約 ${Math.round(23 * K * 2 * 0.8)} W。`; }
+  else if (Pm < -0.3) { el('rPk').textContent = '耗電（電池 → 捲筒）'; el('rP').textContent = (-Pe).toFixed(1) + ' W'; el('rBat').textContent = `電池放電約 ${(-Pe / V_BATT).toFixed(2)} A。收線用的能量比 8 字時發的少，一個循環下來有淨發電。`; }
+  else { el('rPk').textContent = '功率'; el('rP').textContent = '≈ 0 W'; el('rBat').textContent = atEnd ? '到頭了：換一個模式繼續。' : '放線時電機幾乎不出力，功率接近 0。'; }
+  el('hud').textContent = `${(I > 0 ? '+' : '') + I.toFixed(1)} A · ${T.toFixed(1)} N · ${(v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2)} m/s`;
+  return T;
+}
+
+// ---------- 導出動圖用：pullFrame(秒, 鏡頭擺角°, 拉近倍數, 視角, 一段的秒數, 模式) ----------
+// 停掉實時動畫，按「起步 0.6 s → 勻速 → 停下 0.6 s → 停 0.5 s」畫出這一模式裏的那一幀
+window.pullFrame = (sec, deg = 0, zoom = 1, viewName = 'behind', cycle = 4, m = 'launch') => {
+  renderer.setAnimationLoop(null);
+  if (autoEl.checked || mode !== m) { autoEl.checked = false; setMode(m); }
+  const V = MODES[m].v, ramp = 0.6, run = cycle - 0.5;
+  const vAt = tau => tau >= run ? 0 : V * Math.max(0, Math.min(1, tau / ramp, (run - tau) / ramp));
+  const n = 400, h = sec / n;
+  let dist = 0;
+  for (let i = 0; i < n; i++) dist += vAt((i + 0.5) * h) * h;
+  v = vAt(sec);
+  L = (V >= 0 ? L_MIN : L_MAX) + dist * 1000;
+  phase = Math.abs(dist) / 1.1 * Math.PI * 2;
+  body.rotation.x = -MODES[m].lean * Math.PI / 180;
+  apply(false);
+  const [c, tg] = views[viewName], a = deg * Math.PI / 180;
+  const ox = (c[0] - tg[0]) * zoom, oy = (c[1] - tg[1]) * zoom;
+  camera.position.set(tg[0] + ox * Math.cos(a) - oy * Math.sin(a), tg[1] + ox * Math.sin(a) + oy * Math.cos(a),
+                      tg[2] + (c[2] - tg[2]) * zoom);
+  camera.lookAt(...tg);
+  renderer.render(scene, camera);
+};
+
+// ---------- 曲線 ----------
+const chart = el('chart'), kite = el('kite');
+function fitCanvas(c) {
+  const r = c.getBoundingClientRect(), s = Math.min(devicePixelRatio, 2);
+  if (c.width !== Math.round(r.width * s) || c.height !== Math.round(r.height * s)) { c.width = Math.round(r.width * s); c.height = Math.round(r.height * s); }
+  const ctx = c.getContext('2d'); ctx.setTransform(s, 0, 0, s, 0, 0); return [ctx, r.width, r.height];
+}
+function drawChart() {
+  const [ctx, w, h] = fitCanvas(chart);
+  ctx.clearRect(0, 0, w, h);
+  const padL = 34, padR = 6, top1 = 6, h1 = 62, top2 = 84, h2 = 56;
+  const x = tt => padL + (tt - (t - 30)) / 30 * (w - padL - padR);
+  for (let i = 1; i < hist.length; i++) {
+    ctx.fillStyle = colors[hist[i][3]]; ctx.globalAlpha = 0.12;
+    ctx.fillRect(x(hist[i - 1][0]), top1, x(hist[i][0]) - x(hist[i - 1][0]) + 0.5, top2 + h2 - top1);
+  }
+  ctx.globalAlpha = 1;
+  ctx.font = '11px ' + getComputedStyle(document.body).fontFamily; ctx.fillStyle = colors.muted; ctx.strokeStyle = colors.rule; ctx.lineWidth = 1;
+  const yT = T => top1 + h1 - T / 25 * h1, yV = vv => top2 + h2 / 2 - vv / 0.7 * (h2 / 2);
+  for (const [val, lab] of [[0, '0'], [10, '10'], [20, '20 N']]) { ctx.beginPath(); ctx.moveTo(padL, yT(val)); ctx.lineTo(w - padR, yT(val)); ctx.stroke(); ctx.fillText(lab, 2, yT(val) + 4); }
+  for (const [val, lab] of [[0.5, '+0.5'], [0, '0'], [-0.5, '−0.5']]) { ctx.beginPath(); ctx.moveTo(padL, yV(val)); ctx.lineTo(w - padR, yV(val)); ctx.stroke(); ctx.fillText(lab, 2, yV(val) + 4); }
+  const plot = (idx, yf, col) => {
+    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath();
+    hist.forEach((p, i) => { const px = x(p[0]), py = yf(p[idx]); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }); ctx.stroke();
+  };
+  plot(1, yT, colors.accent); plot(2, yV, colors.fg);
+}
+
+// ---------- 真實風箏示意 ----------
+function drawKite() {
+  const [ctx, w, h] = fitCanvas(kite);
+  ctx.clearRect(0, 0, w, h);
+  const gx = 26, gy = h - 18, f = (L - L_MIN) / (L_MAX - L_MIN);
+  const rMin = 0.30 * w, rMax = 0.78 * w, r = rMin + (rMax - rMin) * f;
+  let ang, dx = 0, dy = 0;
+  if (mode === 'launch') ang = 78 - 30 * Math.min(1, f / 0.3);
+  else if (mode === 'eight') { ang = 34; const s = t * 1.1; dx = 0.13 * w * Math.sin(s); dy = 0.07 * w * Math.sin(2 * s); }
+  else ang = 34 - 14 * (1 - f);
+  const a = ang * Math.PI / 180;
+  const kx = gx + r * Math.cos(a) + dx, ky = gy - r * Math.sin(a) * 0.55 + dy;
+  kiteTrail.push([kx, ky]); if (kiteTrail.length > 90) kiteTrail.shift();
+  ctx.strokeStyle = colors.rule; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
+  ctx.fillStyle = colors.muted; ctx.fillRect(gx - 12, gy - 12, 24, 12);
+  ctx.font = '11px ' + getComputedStyle(document.body).fontFamily; ctx.fillText('地面站', gx - 14, gy + 14);
+  ctx.strokeStyle = colors[mode]; ctx.globalAlpha = 0.35; ctx.lineWidth = 2; ctx.beginPath();
+  kiteTrail.forEach(([px, py], i) => i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.stroke(); ctx.globalAlpha = 1;
+  ctx.strokeStyle = colors.accent; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(gx, gy - 6); ctx.lineTo(kx, ky); ctx.stroke();
+  ctx.fillStyle = colors[mode]; ctx.beginPath(); ctx.moveTo(kx, ky - 8); ctx.lineTo(kx + 6, ky); ctx.lineTo(kx, ky + 8); ctx.lineTo(kx - 6, ky); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = colors.fg; ctx.fillText(MODES[mode].name, w - 8 - ctx.measureText(MODES[mode].name).width, 16);
+}
+
+// ---------- 渲染 ----------
+function resize() { const w = view.clientWidth, h = view.clientHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(view); resize();
+applyTheme();
+step(0);
+setView('behind');
+const clock = new THREE.Clock();
+let lastDraw = 0;
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(0.05, clock.getDelta());
+  step(dt);
+  if (follow) { const hy = handleWorld().y, [c, tg] = views.hand; controls.target.y += (tg[1] + hy - controls.target.y); camera.position.y += (c[1] + hy - camera.position.y) * 0.1; }
+  controls.update(); renderer.render(scene, camera);
+  if (t - lastDraw > 0.05) { drawChart(); drawKite(); lastDraw = t; }
+});
+</script>
