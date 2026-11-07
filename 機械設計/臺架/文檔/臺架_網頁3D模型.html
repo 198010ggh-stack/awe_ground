@@ -87,6 +87,12 @@
   #info b { display: block; font-weight: 500; }
   #info .muted { color: var(--muted); font-size: 12px; }
   .hint { position: absolute; right: max(12px, env(safe-area-inset-right, 0px)); top: 10px; color: var(--muted); font-size: 12px; }
+  #chart { display: block; width: 100%; height: 120px; margin-top: 14px; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend span::before { content: ""; width: 16px; height: 0; border-top: 2px solid var(--accent); }
+  .legend .k-motor::before { border-top: 2px dashed var(--muted); }
+  .note b { font-weight: 500; color: var(--fg); }
   @media (max-width: 760px) {
     #app { flex-direction: column; }
     #view { flex: 0 0 55%; }
@@ -104,12 +110,12 @@
 <div id="app">
   <div id="view">
     <div class="hint">拖動旋轉 · 右鍵平移 · 滾輪縮放 · 滑鼠停在零件上看說明</div>
-    <div id="info"><b>捲線器臺架 v2</b><span class="muted">滑輪座直接頂在捲線器靠桌邊那根型材上，滑輪架在桌邊上方，線往下吊一桶水。不用橫樑、角碼和 F 夾。</span></div>
+    <div id="info"><b>捲線器臺架 v2 + 六維力傳感器</b><span class="muted">滑輪座直接頂在捲線器靠桌邊那根型材上，線往下吊一桶水。HKVL-56C 串在線末端和水桶之間，直接讀出線拉力。</span></div>
   </div>
   <aside id="side">
     <header>
-      <h1>捲線器臺架 v2</h1>
-      <div class="sub">滑輪座裝在捲線器上 · 單位 mm · 依臺架設計文檔 v2（2026-11-01）</div>
+      <h1>捲線器臺架 v2 + 六維力傳感器</h1>
+      <div class="sub">滑輪座裝在捲線器上 · 線上串 HKVL-56C · 單位 mm · 依臺架設計文檔 v2（2026-11-05 加傳感器）</div>
     </header>
 
     <section>
@@ -120,6 +126,17 @@
         <li>建議：XT60 防打火開關當急停</li>
       </ul>
       <div class="note">滑輪座用捲線器剩下的 2 顆 M5 × 16、墊片和錘頭 T 型螺母；重物用水桶裝水，行李秤稱重。</div>
+    </section>
+
+    <section>
+      <h2>加傳感器要的</h2>
+      <ul class="buy">
+        <li>打印：上吊板、下吊板（PLA，盤面朝下）</li>
+        <li>M4 × 10 內六角 × 6、M3 熱熔銅螺母（M3 × 5.7）× 6</li>
+        <li>不鏽鋼 S 鉤 × 1（線徑 3 mm 左右）</li>
+        <li>供電和通訊：4S 電池或 12–24 V 適配器、1 A 保險絲、三孔 + 二進二出端子、USB 轉 485 模塊</li>
+      </ul>
+      <div class="note">吊板的孔位按 Ø48 均布估的，打印前用卡尺量一下傳感器，或者跟賣家要 STEP 模型確認。</div>
     </section>
 
     <section>
@@ -144,6 +161,30 @@
     </section>
 
     <section>
+      <h2>傳感器讀數（HKVL-56C，模擬）</h2>
+      <div class="read">
+        <div><span>Fz = 線拉力</span><span class="num" id="sFz">0 N</span></div>
+        <div><span>負載率（≤ 1 安全）</span><span class="num" id="sLR">0.00</span></div>
+        <div><span>電機拉力 − Fz</span><span class="num" id="sGap">0 N</span></div>
+        <div><span>Fx / Fy / 力矩</span><span class="num" id="sOther">≈ 0</span></div>
+      </div>
+      <canvas id="chart" height="120" aria-label="最近 12 秒的電機拉力和傳感器 Fz"></canvas>
+      <div class="legend"><span class="k-motor">電機拉力 k·I</span><span class="k-fz">傳感器 Fz</span></div>
+      <div class="note">水桶勻速或靜止時 Fz 等於水桶重量；加速、減速時多出或少掉 m·a。電機拉力和 Fz 的差是摩擦加慣性。把電流拉到很小，水桶落地後 Fz 就跟着電機拉力走。</div>
+      <div class="note"><b>一桶水測整條線：</b>水桶放在地上，電流從 0 慢慢加到水桶快離地，再慢慢減回 0，記錄 (I, Fz)。上升段和下降段取平均就是 T = k·I + b。前提和方法 1 一樣：電機要能在零轉速附近穩定出力。</div>
+    </section>
+
+    <section>
+      <h2>傳感器為什麼串在線上</h2>
+      <ul class="buy">
+        <li>串在線末端和水桶之間，只受拉力：讀數就是 Fz，力矩幾乎為 0，10 kg 時負載率約 0.11。</li>
+        <li>不裝在滑輪座下面：滑輪座同時壓在桌面上、頂在型材上，力會從這兩條路繞過傳感器，讀數偏小。要測準，被測的一側除了傳感器不能碰別的東西。</li>
+        <li>滑輪下面也放不下：線高 59.5 是捲筒定死的，滑輪最低點離桌面只有 13 mm，傳感器厚 22.5。</li>
+        <li>滑輪座、捲線器一點都不用改。代價是行程從約 320 mm 變成約 220 mm。</li>
+      </ul>
+    </section>
+
+    <section>
       <h2>預計讀數（按 k = 4.2 N/A；實際可能低到 3.6，以實測為準）</h2>
       <table>
         <thead><tr><th>水桶總重</th><th>拉力 N</th><th>開始上升 I_up</th><th>開始下降 I_down</th></tr></thead>
@@ -159,8 +200,10 @@
         <button data-view="side">順著光軸看</button>
         <button data-view="top">俯視</button>
         <button data-view="pulley">滑輪特寫</button>
+        <button data-view="sensor">傳感器特寫</button>
       </div>
       <label class="check"><input id="clip" type="checkbox"> 從中間剖開滑輪座和滑輪</label>
+      <label class="check"><input id="axes" type="checkbox" checked> 顯示傳感器坐標軸（Fx 指向出線口）</label>
     </section>
 
     <section>
@@ -178,7 +221,10 @@
           <tr><td>線往下的位置：離桌邊</td><td class="num">≈ 16</td></tr>
           <tr><td>滑輪外徑 / 槽底 / 寬</td><td class="num">Ø52 / Ø40 / 15</td></tr>
           <tr><td>側板間隙（滑輪 + 2 × 凸台 0.8）</td><td class="num">16.6</td></tr>
-          <tr><td>行程（桌高 750，10 L 水桶）</td><td class="num">≈ 320</td></tr>
+          <tr><td>行程（桌高 750，10 L 水桶；不加傳感器約 320）</td><td class="num">≈ 220</td></tr>
+          <tr><td>線結（上吊耳孔）到水桶提手</td><td class="num">88</td></tr>
+          <tr><td>到頂時傳感器上吊板離桌板底面</td><td class="num">≈ 26</td></tr>
+          <tr><td>傳感器 Ø / 高；量程 Fz / M</td><td class="num">56 / 22.5；300 N / 10 N·m</td></tr>
           <tr><td>掀翻力矩 / 捲線器自重回正力矩（10 kg）</td><td class="num">1.5 / 3.7 N·m</td></tr>
         </tbody>
       </table>
@@ -200,9 +246,11 @@ const R_DRUM = 45.5, R_SHEAVE = 20.7;
 const LINE_Y = AXLE.y + R_SHEAVE;  // 往下走的那段線，離桌邊約 16
 const FLOOR = -750, TABLE_T = 25, PAD_T = 30;
 const K = 4.2, G = 9.81, FRIC_A = 0.4, DAMP = 60;   // N/A；摩擦折合電流；N/(m/s)
-const Z_TOP = -30;                // 線末端最高（海綿碰到滑輪座側板底）
+const Z_TOP = -40;                // 線末端（上吊耳孔）最高：上面的海綿碰到滑輪座側板底
 const HANDLE = 90, BUCKET_H = 280, BUCKET_R0 = 110, BUCKET_R1 = 130;
-const HANG = HANDLE + BUCKET_H;   // 線末端到桶底
+const SENSOR_DROP = 88;           // 上吊耳孔 → 上吊板 → 傳感器 → 下吊板 → S 鉤 → 水桶提手頂
+const HANG = SENSOR_DROP + HANDLE + BUCKET_H;   // 線末端到桶底
+const FS_F = 300, FS_M = 10;      // HKVL-56C 量程
 const D_MAX = Z_TOP - (FLOOR + PAD_T + HANG);   // 行程
 
 const P = {
@@ -252,6 +300,11 @@ const M = {
   foam: mat(0x7fb3d9, { rough: 0.95 }), sponge: mat(0xf2d16b, { rough: 0.95 }),
   book1: mat(0x8e3b46, { rough: 0.8 }), book2: mat(0x2f5d8a, { rough: 0.8 }),
   line: new THREE.MeshStandardMaterial({ color: 0xcf5a26, roughness: 0.8 }),
+  sensor: mat(0xd9dde2, { metal: 0.55, rough: 0.3 }), adapter: mat(0xd99ac4, { rough: 0.7 }),
+  cable: mat(0x5f676f, { rough: 0.7 }), pcb: mat(0x2f6db5, { rough: 0.6 }), term: mat(0x3b9a57, { rough: 0.6 }),
+  wago: mat(0xb9bec4, { rough: 0.5 }), lever: mat(0xe07b39, { rough: 0.6 }), battery: mat(0x30343a, { rough: 0.5 }),
+  wRed: mat(0xd23b3b, { rough: 0.6 }), wBlack: mat(0x1e1f22, { rough: 0.6 }), wYellow: mat(0xe5c33a, { rough: 0.6 }),
+  wGreen: mat(0x3a9d5d, { rough: 0.6 }), fuse: mat(0xf2d16b, { rough: 0.5, opacity: 0.8 }),
 };
 
 // ---------- 幾何工具 ----------
@@ -443,7 +496,7 @@ const lineParts = [];
     const a = i / 20 * Math.PI / 2; return new THREE.Vector3(XL, AXLE.y + R_SHEAVE * Math.sin(a), AXLE.z + R_SHEAVE * Math.cos(a));
   }));
   const vert = new THREE.CylinderGeometry(0.9, 0.9, 1, 10); vert.rotateX(Math.PI / 2); vert.translate(0, 0, -0.5);
-  const grp = addPart('Dyneema 測試線 1.5 m', 'Ø1.0。從捲筒下方出來，水平走 80 mm 到滑輪（離桌面 59.5），轉 90° 在桌邊外約 16 mm 處往下，打結拴在水桶提手上。', '已有', '#cf5a26',
+  const grp = addPart('Dyneema 測試線 1.5 m', 'Ø1.0。從捲筒下方出來，水平走 80 mm 到滑輪（離桌面 59.5），轉 90° 在桌邊外約 16 mm 處往下，打單套結拴在上吊板的吊耳孔上。', '已有', '#cf5a26',
     [[horiz, M.line], [new THREE.TubeGeometry(arc, 24, 0.9, 10), M.line], [vert, M.line]]);
   lineParts.push(grp.children[2]);
   grp.children[2].position.set(XL, LINE_Y, AXLE.z);
@@ -454,17 +507,91 @@ const hanger = new THREE.Group(); hanger.position.set(XL, LINE_Y, Z_TOP); scene.
 const waterGroup = new THREE.Group();
 {
   const g = [];
-  g.push([cylZ(9, 0, 0, 2, 27), M.sponge]);
+  g.push([cylZ(9, 0, 0, 12, 37), M.sponge]);
   const handle = new THREE.CatmullRomCurve3(Array.from({ length: 25 }, (_, i) => {
-    const t = i / 24 * Math.PI; return new THREE.Vector3(BUCKET_R1 * Math.cos(t), 0, -HANDLE + HANDLE * Math.sin(t));
+    const t = i / 24 * Math.PI; return new THREE.Vector3(BUCKET_R1 * Math.cos(t), 0, -SENSOR_DROP - HANDLE + HANDLE * Math.sin(t));
   }));
   g.push([new THREE.TubeGeometry(handle, 40, 2.5, 8), M.dark]);
   const prof = [[0, 0], [BUCKET_R0, 0], [BUCKET_R1, BUCKET_H], [BUCKET_R1 - 3, BUCKET_H], [BUCKET_R0 - 3, 3], [0, 3]];
   const bg = new THREE.LatheGeometry(prof.map(([r, h]) => new THREE.Vector2(r, h)), 64);
   bg.rotateX(Math.PI / 2); bg.translate(0, 0, -HANG);
   g.push([bg, M.bucket]);
-  addPart('水桶 + 水', '約 10 L 的水桶，加減水調重量，用行李秤連桶一起稱。線直接打結拴在提手上；提手上方的線套一小塊海綿，拉到頂時先撞海綿。代替槓鈴片、M12 掛桿和 D 形扣。', '家裏有', '#4a90d9', g, hanger);
+  addPart('水桶 + 水', '約 10 L 的水桶，加減水調重量，用行李秤連桶一起稱。提手用 S 鉤掛在傳感器的下吊板上；上吊板上方的線套一小塊海綿，拉到頂時先撞海綿，傳感器碰不到桌子。', '家裏有', '#4a90d9', g, hanger);
   parts[parts.length - 1].group.add(waterGroup);
+}
+
+// ---------- 六維力傳感器 + 吊板（掛在 hanger 下，原點 = 上吊耳孔中心，z 朝上） ----------
+// 疊放：上吊耳 0..+10，上吊板 −17..−11，傳感器工具端 −17（上）… 固定端 −39.5（下），下吊板 −47.5..−39.5，下吊耳孔 −58.5，S 鉤到 −92
+const lugToWorld = new THREE.Matrix4().set(1, 0, 0, 0, 0, 0, 1, -4, 0, 1, 0, 0, 0, 0, 0, 1);   // 在 x-z 平面畫、沿 y 擠出 8
+function lug(zHole, up) {
+  const s = new THREE.Shape(), zRoot = up ? zHole - 11 : zHole + 11;
+  s.moveTo(-10, zRoot); s.lineTo(10, zRoot); s.lineTo(10, zHole); s.absarc(0, zHole, 10, 0, Math.PI, !up); s.lineTo(-10, zRoot);
+  s.holes.push(circlePath(0, zHole, 3));
+  const g = new THREE.ExtrudeGeometry(s, { depth: 8, bevelEnabled: false, curveSegments: 32 });
+  g.applyMatrix4(lugToWorld); return g;
+}
+{
+  addPart('上吊板 / 下吊板（打印）', '上吊板：Ø56 × 6 圓盤 + 帶 Ø6 孔的吊耳，線打單套結拴在孔上；6 顆 M4 × 10 擰進傳感器頂面的 M4 孔（孔下面就是 M3 內埋螺栓頭，不能擰深）。下吊板：Ø56 × 8 圓盤 + 吊耳，頂面壓 6 個 M3 熱熔銅螺母，接傳感器底面伸出來的 M3 螺栓。孔位按 Ø48 均布估的，打印前用卡尺或廠家 STEP 確認。', '3D 打印', '#d99ac4',
+    [[cylZ(28, 0, 0, -17, -11, 64), M.adapter], [lug(0, true), M.adapter], [cylZ(28, 0, 0, -47.5, -39.5, 64), M.adapter], [lug(-58.5, false), M.adapter]], hanger);
+  const boss = new THREE.CylinderGeometry(4, 4, 6, 24); boss.rotateZ(-Math.PI / 2); boss.translate(31, 0, -35);
+  addPart('六維力傳感器 HKVL-56C', 'Ø56 × 22.5，量程 Fx/Fy/Fz 300 N、Mx/My/Mz 10 N·m。工具端朝上接線，固定端朝下掛水桶，整個只受拉力：Fz = 線拉力，力矩幾乎為 0，10 kg 時負載率約 0.11。出線口朝 +x（沿桌邊），所以 Fx 沿桌邊、Fy 朝桌外、Fz 朝上。', '已有', '#d9dde2',
+    [[cylZ(28, 0, 0, -26, -17, 64), M.sensor], [cylZ(27.4, 0, 0, -30.5, -26, 64), M.dark], [cylZ(28, 0, 0, -39.5, -30.5, 64), M.sensor], [boss, M.dark]], hanger);
+  const g = [];
+  for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; g.push([cylZ(3.5, 24 * Math.cos(a), 24 * Math.sin(a), -11, -7, 16), M.bolt]); }
+  const hook = [];
+  for (let i = 0; i <= 27; i++) { const a = i / 27 * 1.5 * Math.PI; hook.push(new THREE.Vector3(0, 6 * Math.cos(a), -66 + 6 * Math.sin(a))); }
+  hook.push(new THREE.Vector3(0, 0, -76));
+  for (let i = 0; i <= 24; i++) { const a = Math.PI / 2 - i / 24 * (5 / 3) * Math.PI; hook.push(new THREE.Vector3(0, 6 * Math.cos(a), -86 + 6 * Math.sin(a))); }
+  g.push([new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hook), 80, 1.5, 10), M.bolt]);
+  addPart('M4 螺絲 / S 鉤', 'M4 × 10 內六角 × 6 固定上吊板；M3 熱熔銅螺母（M3 × 5.7）× 6 壓在下吊板裏；不鏽鋼 S 鉤一個，上鉤穿下吊耳孔，下鉤掛水桶提手（都要買）。', '要買', '#8d949b', g, hanger);
+}
+// 坐標軸：工具端朝上 → Fz = +z；出線口朝 +x → Fx = +x；從上往下看 Fx 逆時針轉 90° → Fy = +y
+const axes = new THREE.Group(); axes.position.set(0, 0, -28); hanger.add(axes);
+function label(text, color) {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 64;
+  const x = c.getContext('2d'); x.font = '600 40px "JetBrains Mono", Consolas, monospace'; x.fillStyle = color; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText(text, 64, 34);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false }));
+  sp.scale.set(26, 13, 1); return sp;
+}
+for (const [dir, color, text] of [[[1, 0, 0], '#d9534f', 'Fx'], [[0, 1, 0], '#3a9d5d', 'Fy'], [[0, 0, 1], '#3d7fd9', 'Fz']]) {
+  const v3 = new THREE.Vector3(...dir);
+  axes.add(new THREE.ArrowHelper(v3, new THREE.Vector3(), 70, color, 12, 7));
+  const sp = label(text, color); sp.position.copy(v3.clone().multiplyScalar(84)); axes.add(sp);
+}
+document.getElementById('axes').addEventListener('change', e => { axes.visible = e.target.checked; });
+
+// ---------- 傳感器線纜（跟着水桶動）+ 桌上的端子、485 模塊、電池 ----------
+const CLIP = new THREE.Vector3(XL + 230, YE + 2, -12), CABLE_L = 370;   // 最低位置時出線口到線卡約 340
+const cableMesh = new THREE.Mesh(new THREE.BufferGeometry(), M.cable); cableMesh.userData.part = '傳感器線纜 / 485 / 電池';
+function updateCable() {
+  const p0 = new THREE.Vector3(XL + 34, LINE_Y, hanger.position.z - 35), p1 = p0.clone().add(new THREE.Vector3(18, 0, 0));
+  const c = p1.distanceTo(CLIP), f = Math.sqrt(Math.max(0, 3 * c * (CABLE_L - c) / 8));   // 拋物線弧長 ≈ c + 8f²/(3c)
+  const mid = p1.clone().lerp(CLIP, 0.5); mid.z -= 2 * f;
+  const curve = new THREE.CurvePath();
+  curve.add(new THREE.LineCurve3(p0, p1)); curve.add(new THREE.QuadraticBezierCurve3(p1, mid, CLIP));
+  cableMesh.geometry.dispose(); cableMesh.geometry = new THREE.TubeGeometry(curve, 40, 2.25, 8);
+}
+{
+  const tube = (pts, r, m) => [new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 24, r, 8), m];
+  const W0 = [XL + 225, 40];                                    // 端子在桌上的位置
+  const g = [
+    [boxG(CLIP.x - 6, CLIP.x + 6, YE, YE + 4, -18, -6), M.dark],                      // 桌子前沿下的線卡
+    tube([[CLIP.x, YE + 2, -12], [CLIP.x, YE + 4, -2], [CLIP.x, YE - 6, 3], [CLIP.x, 60, 2.5], [W0[0] + 5, W0[1] + 12, 4]], 2.25, M.cable),
+    [boxG(W0[0] - 8, W0[0] + 10, W0[1] - 6, W0[1] + 6, 0, 9), M.wago], [boxG(W0[0] - 7, W0[0] + 9, W0[1] - 5, W0[1] + 5, 9, 11), M.lever],
+    [boxG(W0[0] + 20, W0[0] + 34, W0[1] - 6, W0[1] + 6, 0, 9), M.wago], [boxG(W0[0] + 21, W0[0] + 33, W0[1] - 5, W0[1] + 5, 9, 11), M.lever],
+    [boxG(XL + 280, XL + 325, -10, 12, 0, 3), M.pcb], [boxG(XL + 280, XL + 290, -10, 12, 3, 13), M.term], [boxG(XL + 318, XL + 330, -4, 6, 2, 9), M.wago],
+    [boxG(XL + 190, XL + 265, -95, -60, 0, 28), M.battery], [(() => { const f = new THREE.CylinderGeometry(4, 4, 20, 16); f.translate(XL + 243, -45, 5); return f; })(), M.fuse],
+    tube([[W0[0] + 27, W0[1] - 6, 4], [XL + 248, 10, 3], [XL + 243, -30, 5], [XL + 243, -35, 5]], 1, M.wRed),
+    tube([[XL + 243, -55, 5], [XL + 243, -60, 14], [XL + 240, -66, 28]], 1, M.wRed),
+    tube([[W0[0] - 4, W0[1] - 6, 4], [W0[0] - 10, 0, 3], [XL + 215, -50, 5], [XL + 212, -66, 28]], 1, M.wBlack),
+    tube([[W0[0] + 2, W0[1] - 6, 4], [W0[0] + 30, 15, 3], [XL + 283, 6, 8]], 0.9, M.wYellow),
+    tube([[W0[0] + 8, W0[1] - 6, 4], [W0[0] + 36, 10, 3], [XL + 283, 0, 8]], 0.9, M.wGreen),
+    tube([[W0[0] + 30, W0[1] - 6, 5], [W0[0] + 50, 22, 3], [XL + 283, -6, 8]], 0.7, M.wBlack),
+    tube([[XL + 330, 1, 5], [XL + 380, -20, 3], [XL + 420, -160, 3], [XL + 430, -330, 3]], 1.8, M.cable),
+  ];
+  const grp = addPart('傳感器線纜 / 485 / 電池', '傳感器 4 芯線從出線口出來留一段鬆弛的弧，卡在桌子前沿下面，再上到桌面接端子。紅線經 1 A 保險絲接 4S 電池正極；黑線、電池負極、485 GND 進三孔端子；黃、綠接 USB 轉 485 模塊 A、B，模塊插電腦跑 hkvl56.py。行程約 0.22 m，從出線口到線卡要留約 0.4 m 線，先量一下傳感器自帶的線夠不夠長。', '要買 / 已有', '#2f6db5', g);
+  grp.add(cableMesh);
 }
 function setWater(m) {
   waterGroup.clear();
@@ -515,6 +642,7 @@ const views = {
   side: [[1650, 20, -120], [XL, 20, -170]],
   top: [[XL, 0, 1500], [XL, 0, 0]],
   pulley: [[420, 330, 190], [XL, 70, 30]],
+  sensor: [[XL + 420, LINE_Y + 470, -90], [XL + 40, LINE_Y, -200]],
 };
 function setView(k) { const [c, t] = views[k]; camera.position.set(...c); controls.target.set(...t); controls.update(); }
 document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
@@ -526,7 +654,9 @@ function applyTheme() {
   scene.background = new THREE.Color(v('--scene'));
   makeGrid(new THREE.Color(v('--grid1')), new THREE.Color(v('--grid2')));
   M.line.color.set(v('--accent'));
+  chartColors = { accent: v('--accent'), muted: v('--muted'), rule: v('--rule'), mono: v('--mono') };
 }
+let chartColors = {};
 applyTheme();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
@@ -573,7 +703,49 @@ function step(dt) {
   el('rW').textContent = W.toFixed(1) + ' N';
   el('rV').textContent = Math.abs(v).toFixed(2) + ' m/s';
   el('rD').textContent = Math.round(d) + ' / ' + Math.round(D_MAX) + ' mm';
+  // 傳感器：掛着的水桶 Fz = m(g + a)；水桶落地時 Fz 跟着電機拉力；到頂時海綿頂住滑輪座，傳感器只看到水桶重量
+  const a = (v - vPrev) / Math.max(dt, 1e-3); vPrev = v;
+  aS += (Math.max(-4, Math.min(4, a)) - aS) * Math.min(1, dt * 8);
+  const onFloor = d >= D_MAX && F < W;
+  const Fz = onFloor ? Math.max(0, F) : mass * (G + aS);
+  el('sFz').textContent = Fz.toFixed(1) + ' N';
+  el('sLR').textContent = ((Fz / FS_F) ** 2).toFixed(2);
+  el('sGap').textContent = (F - Fz >= 0 ? '+' : '') + (F - Fz).toFixed(1) + ' N';
+  el('sOther').textContent = '≈ 0';
+  sampleT += dt;
+  if (sampleT >= 0.05) { sampleT = 0; hist.push([F, Fz]); if (hist.length > 240) hist.shift(); drawChart(); }
   pose();
+}
+let vPrev = 0, aS = 0, sampleT = 0;
+const hist = [];
+const chart = el('chart'), cx = chart.getContext('2d');
+function drawChart() {
+  const dpr = Math.min(devicePixelRatio, 2), w = chart.clientWidth, h = chart.clientHeight;
+  if (!w) return;
+  if (chart.width !== Math.round(w * dpr)) { chart.width = Math.round(w * dpr); chart.height = Math.round(h * dpr); }
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, w, h);
+  let lo = Infinity, hi = -Infinity;
+  for (const [f, z] of hist) { lo = Math.min(lo, f, z); hi = Math.max(hi, f, z); }
+  if (!hist.length) return;
+  lo = Math.floor((lo - 3) / 10) * 10; hi = Math.ceil((hi + 3) / 10) * 10;
+  const padL = 34, padR = 6, padT = 8, padB = 8;
+  const X = i => padL + (w - padL - padR) * i / 239, Y = val => padT + (h - padT - padB) * (1 - (val - lo) / (hi - lo));
+  cx.font = `11px ${chartColors.mono || 'monospace'}`; cx.textBaseline = 'middle'; cx.textAlign = 'right';
+  const step10 = (hi - lo) > 60 ? 20 : 10;
+  for (let g = lo; g <= hi; g += step10) {
+    cx.strokeStyle = chartColors.rule; cx.lineWidth = 1; cx.setLineDash([]);
+    cx.beginPath(); cx.moveTo(padL, Y(g)); cx.lineTo(w - padR, Y(g)); cx.stroke();
+    cx.fillStyle = chartColors.muted; cx.fillText(g + ' N', padL - 4, Y(g));
+  }
+  const off = 240 - hist.length;
+  const line = (k, color, dash, width) => {
+    cx.strokeStyle = color; cx.lineWidth = width; cx.setLineDash(dash); cx.beginPath();
+    hist.forEach((p, i) => { const x = X(i + off), y = Y(p[k]); i ? cx.lineTo(x, y) : cx.moveTo(x, y); }); cx.stroke();
+  };
+  line(0, chartColors.muted, [5, 4], 1.5);
+  line(1, chartColors.accent, [], 2);
+  const last = hist[hist.length - 1];
+  cx.setLineDash([]); cx.fillStyle = chartColors.accent; cx.beginPath(); cx.arc(X(239), Y(last[1]), 3, 0, Math.PI * 2); cx.fill();
 }
 function pose() {
   const ze = Z_TOP - d;
@@ -581,6 +753,7 @@ function pose() {
   lineParts[0].scale.z = AXLE.z - ze;
   rotor.rotation.x = d / R_DRUM;
   sheave.rotation.x = -d / R_SHEAVE;
+  updateCable();
 }
 
 // ---------- 導出動圖用：rigFrame(秒, 鏡頭擺角°, 拉近倍數, 視角) 停掉實時動畫，按 8 秒一個來回畫出那一幀 ----------

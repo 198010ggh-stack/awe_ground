@@ -5,7 +5,9 @@ Part frames are chosen so the exported STL already lies in its print orientation
   sheave  - axis along Z, faces at z = 0 and 15 (or -15..0)
   stand   - (v2) X along the line from the outer face of the winch's near 2020 rail (table edge at x = 35),
             Y along the table edge, Z up from the table top.
-Run as build_rig.py [sheave|stand].
+  hanger_top / hanger_bottom - (2026-11-05) plates that hang the HKVL-56C six-axis sensor in the line; disc on the bed,
+            lug up along +Z; also exported as STL into 打印件/.
+Run as build_rig.py [sheave|stand|hanger_top|hanger_bottom ...]; no argument builds sheave and stand.
 """
 import math
 import os
@@ -14,10 +16,11 @@ import sys
 sys.path.insert(0, r"C:\Users\123\.claude\skills\solidworks-automation\scripts")
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "捲線器", "腳本"))
 from sw_connect import mm  # noqa: E402
-from sw_part import (sketch_circle, sketch_corner_rectangle, sketch_line, extrude_boss,  # noqa: E402
+from sw_part import (sketch_circle, sketch_corner_rectangle, sketch_line, extrude_boss, extrude_cut,  # noqa: E402
                      _ensure_sketch_selected, _select_by_id)
 from sw_session import SolidWorksSession  # noqa: E402
-from build_parts import sketch, feature_checked, body_box, volume_cm3, check, near, extrude_mid, cut_midplane  # noqa: E402
+from build_parts import (sketch, feature_checked, body_box, volume_cm3, check, near, extrude_mid, cut_midplane,  # noqa: E402
+                         holes_on_pcd)
 
 OUT = r"D:\123\Desktop\aweground\機械設計\臺架"
 
@@ -223,6 +226,132 @@ def build_stand(session):
     return model
 
 
+# ---------------- HKVL-56C hanger plates (2026-11-05) ----------------
+# The six-axis sensor hangs in the line: line -> top plate lug -> sensor -> bottom plate lug -> S hook -> bucket.
+# Part frame = print orientation: disc on the bed (z 0..T, the face at z = 0 touches the sensor), lug up along +Z,
+# lug width along X, lug hole axis along Y.
+# Hole pattern is an estimate from the manual drawing (6 holes on Ø48 at 0°, 60°, ...; two dowel holes at 150° and 270°);
+# check it against the real sensor (calipers or the vendor STEP) before printing.
+HANGER_D = 56.0
+HANGER_PCD, HANGER_N = 48.0, 6
+PIN_ANGLES, PIN_CLEAR_D = (150.0, 270.0), 4.6     # clearance for the sensor's Ø4 dowel holes, in case dowels are fitted
+LUG_W, LUG_T, LUG_HOLE_D, LUG_HOLE_H = 20.0, 8.0, 6.0, 11.0   # hole centre 11 above the disc; round top R10
+HANGER = {
+    # top plate (tool end): 6 x M4 x 10 through Ø4.5 into the sensor's M4 holes (only ~4 mm engagement: the M3 heads sit below)
+    "top": dict(t=6.0, hole_d=4.5, hole_depth=None, pin_depth=None),
+    # bottom plate (fixed end): 6 x M3 x 5.7 heat-set inserts (OD 4.6 -> Ø4.0 hole, 7 deep) for the sensor's protruding M3 bolts
+    "bottom": dict(t=8.0, hole_d=4.0, hole_depth=7.0, pin_depth=6.0),
+}
+
+
+def blind_cut_from_bed(model, draw, depth, removed, label):
+    """Cut the circles drawn by draw() on Front Plane from z = 0 up to z = depth (try both directions, check volume)."""
+    for direction in (True, False):
+        with sketch(model, "Front Plane") as sk:
+            draw()
+        before = volume_cm3(model)
+        feat = extrude_cut(model, sk, mm(depth), direction=direction)
+        after = volume_cm3(model)
+        if feat is not None and abs((before - after) - removed) < 0.01:
+            print(f"  {label}: ok (direction={direction}) vol {before}->{after} (expected -{removed:.3f})")
+            return
+        print(f"  {label}: direction={direction} rejected vol {before}->{after}")
+        if feat is not None:
+            model.EditUndo2(1)
+        model.ForceRebuild3(False)
+    raise RuntimeError(f"{label} failed")
+
+
+def build_hanger(session, kind):
+    spec = HANGER[kind]
+    t = spec["t"]
+    model = session.new_part()
+    print(f"[{'上' if kind == 'top' else '下'}吊板]")
+    r = HANGER_D / 2
+
+    # 1) disc on the bed, z 0..t
+    with sketch(model, "Front Plane") as sk:
+        sketch_circle(model, 0, 0, mm(r))
+    v_disc = math.pi * r * r * t / 1000
+    feature_checked(model, lambda d: extrude_boss(model, sk, mm(t), direction=d),
+                    lambda b, v: b and near(b[2], 0) and near(b[5], t) and abs(v - v_disc) < 0.01, "disc")
+
+    # 2) lug: rectangle (x ±10, z t..t+11) + Ø20 circle centred on the hole, both mid-plane 8 thick along Y.
+    #    Top Plane sketch y maps to model ±Z depending on the version, so find the sign from the first feature.
+    zc = t + LUG_HOLE_H
+    v_rect = LUG_W * LUG_HOLE_H * LUG_T / 1000
+    zsign = None
+    for sign in (1, -1):
+        with sketch(model, "Top Plane") as rsk:
+            sketch_corner_rectangle(model, mm(-LUG_W / 2), mm(sign * t), mm(LUG_W / 2), mm(sign * zc))
+        before = volume_cm3(model)
+        feat = extrude_mid(model, rsk, mm(LUG_T))
+        box, after = body_box(model), volume_cm3(model)
+        if feat is not None and near(box[5], zc) and abs((after - before) - v_rect) < 0.01:
+            print(f"  lug block ok (sketch sign {sign}) box={box} vol {before}->{after}")
+            zsign = sign
+            break
+        print(f"  lug block sign {sign} rejected box={box} vol {before}->{after}")
+        if feat is not None:
+            model.EditUndo2(1)
+        model.ForceRebuild3(False)
+    check(zsign is not None, "lug block failed")
+
+    def lug_step(radius, cut, expected, label):
+        with sketch(model, "Top Plane") as csk:
+            sketch_circle(model, 0, mm(zsign * zc), mm(radius))
+        before = volume_cm3(model)
+        feat = cut_midplane(model, csk, mm(LUG_T + 4)) if cut else extrude_mid(model, csk, mm(LUG_T))
+        after = volume_cm3(model)
+        print(f"  {label}: vol {before}->{after} (expected {'-' if cut else '+'}{expected:.3f})")
+        check(feat is not None and abs(abs(after - before) - expected) < 0.01, f"{label} failed")
+
+    lug_step(LUG_W / 2, False, math.pi * (LUG_W / 2) ** 2 / 2 * LUG_T / 1000, "lug round top")
+    lug_step(LUG_HOLE_D / 2, True, math.pi * (LUG_HOLE_D / 2) ** 2 * LUG_T / 1000, "lug hole")
+
+    # 3) six holes on the PCD (clear of the lug: the lug stays inside x ±10, y ±4)
+    def pcd_holes():
+        holes_on_pcd(model, HANGER_PCD, spec["hole_d"], HANGER_N, 0.0)
+
+    def pin_holes():
+        for a in PIN_ANGLES:
+            sketch_circle(model, mm(math.cos(math.radians(a)) * HANGER_PCD / 2),
+                          mm(math.sin(math.radians(a)) * HANGER_PCD / 2), mm(PIN_CLEAR_D / 2))
+
+    a_hole, a_pin = math.pi * (spec["hole_d"] / 2) ** 2, math.pi * (PIN_CLEAR_D / 2) ** 2
+    if spec["hole_depth"] is None:          # top plate: through holes
+        for draw, n, area, label in ((pcd_holes, HANGER_N, a_hole, "M4 clearance holes"),
+                                     (pin_holes, len(PIN_ANGLES), a_pin, "dowel clearance holes")):
+            with sketch(model, "Front Plane") as hsk:
+                draw()
+            before = volume_cm3(model)
+            feat = cut_midplane(model, hsk, mm(2 * t + 2))
+            after = volume_cm3(model)
+            print(f"  {label}: vol {before}->{after} (expected -{n * area * t / 1000:.3f})")
+            check(feat is not None and abs((before - after) - n * area * t / 1000) < 0.01, f"{label} failed")
+    else:                                   # bottom plate: blind holes from the sensor face
+        blind_cut_from_bed(model, pcd_holes, spec["hole_depth"], HANGER_N * a_hole * spec["hole_depth"] / 1000,
+                           "insert holes")
+        blind_cut_from_bed(model, pin_holes, spec["pin_depth"], len(PIN_ANGLES) * a_pin * spec["pin_depth"] / 1000,
+                           "dowel clearance holes")
+
+    delete_orphan_sketches(model)
+    box = body_box(model)
+    print(f"  final box={box} vol={volume_cm3(model)} bodies={len(model.GetBodies2(0, True) or [])}")
+    check(near(box[0], -r) and near(box[3], r) and near(box[2], 0) and near(box[5], zc + LUG_W / 2),
+          "hanger bounding box mismatch")
+    check(len(model.GetBodies2(0, True) or []) == 1, "hanger is not a single body")
+    return model
+
+
+def export_stl(session, model, name):
+    path = os.path.join(OUT, "打印件", name + ".STL")
+    model.ForceRebuild3(False)
+    ok = session.export(model, path)
+    check(ok and os.path.exists(path), f"STL export failed: {path}")
+    print(f"  exported {path} ({os.path.getsize(path)} bytes)")
+
+
 def save(session, model, name):
     path = os.path.join(OUT, name + ".SLDPRT")
     model.ForceRebuild3(False)
@@ -240,6 +369,11 @@ if __name__ == "__main__":
     for job in jobs:
         if job == "sheave":
             save(s, build_sheave(s), "滑輪")
+        elif job in ("hanger_top", "hanger_bottom"):
+            name = "上吊板" if job == "hanger_top" else "下吊板"
+            m = build_hanger(s, job.split("_")[1])
+            save(s, m, name)
+            export_stl(s, m, name + "_打1個")
         else:
             save(s, build_stand(s), "滑輪座")
     print("ALL DONE")

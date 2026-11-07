@@ -6,3 +6,6 @@
 *.STL binary
 *.stl binary
 *.3mf binary
+
+# 要在 Linux（Jetson）上運行的腳本保持 LF 換行
+*.sh text eol=lf
